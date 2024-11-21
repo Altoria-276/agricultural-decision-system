@@ -1,5 +1,5 @@
 import shutil
-from PySide2.QtWidgets import QApplication, QMessageBox
+from PySide2.QtWidgets import QApplication,QMessageBox
 from PySide2.QtWidgets import QFileDialog
 from PySide2.QtUiTools import QUiLoader
 import os
@@ -29,57 +29,39 @@ import sys
 import re
 
 np.random.seed(42)  # 设置种子值为42
-plt.rcParams["font.sans-serif"] = ["SimHei"]
+plt.rcParams['font.sans-serif'] = ['SimHei']
 # 用来正常显示中文标签
-plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams['axes.unicode_minus'] = False
 # 用来正常显示负号
 
 warnings.filterwarnings("ignore")
 # 全局，错误数据的索引
 globals_dict = {}
 globals_right = {}
-# 显示所有列
-pd.set_option("display.max_columns", None)
-# 显示所有行
-pd.set_option("display.max_rows", None)
+#显示所有列
+pd.set_option('display.max_columns', None)
+#显示所有行
+pd.set_option('display.max_rows', None)
 
 # 忽略特定类型的警告
 warnings.filterwarnings("ignore", category=FutureWarning)  # 忽略FutureWarning
 warnings.filterwarnings("ignore", category=UserWarning)  # 忽略UserWarning
 
 # 颜色列表
-colors = [
-    "red",
-    "cyan",
-    "pink",
-    "orange",
-    "limegreen",
-    "salmon",
-    "grey",
-    "gold",
-    "darkgreen",
-    "royalblue",
-    "darkmagenta",
-    "darkgoldenrod",
-    "maroon",
-    "saddlebrown",
-    "lawngreen",
-    "olive",
-    "navy",
-]
+colors = ['red', 'cyan', 'pink', 'orange', 'limegreen', 'salmon', 'grey', 'gold', 'darkgreen', 'royalblue', 'darkmagenta',
+          'darkgoldenrod', 'maroon', 'saddlebrown', 'lawngreen', 'olive', 'navy']
 
-space = ["经度", "纬度"]
+space = ['经度','纬度']
 label = []  ##label为重金属
-col = []  ##col为环境协变量
-method = "KMeans"
-kringing_num = 80  # 插值50x50
-logpre_excel = []  # 克里金插值后生成的excel名称列表，预测,重金属做差，之后保存成一个新的excel名称列表
+col = []   ##col为环境协变量
+method = 'KMeans'
+kringing_num = 80 #插值50x50
+logpre_excel = []  #克里金插值后生成的excel名称列表，预测,重金属做差，之后保存成一个新的excel名称列表
 grid_size = 0.01  # 设置栅格大小
-rmse_thres = 0.4  # rmse_thres为阈值
-# shapefile = './数据/湘潭镇界.shp'
-# data = gpd.read_file(shapefile)
+rmse_thres = 0.4 # rmse_thres为阈值
+#shapefile = './数据/湘潭镇界.shp'
+#data = gpd.read_file(shapefile)
 endframe = pd.DataFrame()
-
 
 class allp:
     # 生成带有时间戳的文件夹
@@ -109,17 +91,18 @@ class allp:
                     # 删除子文件夹
                     shutil.rmtree(item_path)
 
-    def get_excel_filenames(self, directory):
+
+    def get_excel_filenames(self,directory):
         xls_files = glob.glob(os.path.join(directory, "*.xlsx"))
         filenames = [os.path.basename(file) for file in xls_files]
         return filenames
 
-    def get_shp_filenames(self, directory):
+    def get_shp_filenames(self,directory):
         shp_files = glob.glob(os.path.join(directory, "*.shp"))
         filenames = [os.path.basename(file) for file in shp_files]
         return filenames
 
-    def logistic_regression_test(self, all_data, label, x_col):
+    def logistic_regression_test(self,all_data, label, x_col):
         y_col = []
         y_col.append(label)
         Y = all_data.loc[:, y_col]
@@ -135,12 +118,12 @@ class allp:
         # 计算均方根误差（RMSE）
         rmse = np.sqrt(mse)
         r2 = r2_score(y_test, y_predict)
-        print("正在回归:", label)
+        print('正在回归:', label)
         print("算法rmse:", rmse)
 
         return rmse, mse, r2
 
-    def logi_exam(self, excel_file):
+    def logi_exam(self,excel_file):
         x_col = col
         y_col = label
         all_data = pd.read_excel(excel_file)
@@ -154,42 +137,36 @@ class allp:
             if r >= rmse_thres:
                 flag = 1
         if flag == 0:
-            print("{}通过检验".format(excel_file))
+            print('{}通过检验'.format(excel_file))
             return
         if flag == 1:
-            print("{}未通过检验".format(excel_file))
+            print('{}未通过检验'.format(excel_file))
             return excel_file
 
-    """克里金插值"""
-
-    def kringing(self, df, attributes, longitude, latitude, file_name, outpath, num):
+    def kringing(self, df, attributes, longitude, latitude, file_name,  outpath, num):
         # 读取指定范围的shapefile文件
-        # specified_shapefile = gpd.read_file(maskBoundary)
+        #specified_shapefile = gpd.read_file(maskBoundary)
 
         # 获取经度和纬度的最大最小值
-        # min_longitude = specified_shapefile.bounds['minx'].min()
-        # max_longitude = specified_shapefile.bounds['maxx'].max()
-        # min_latitude = specified_shapefile.bounds['miny'].min()
-        # max_latitude = specified_shapefile.bounds['maxy'].max()
+        #min_longitude = specified_shapefile.bounds['minx'].min()
+        #max_longitude = specified_shapefile.bounds['maxx'].max()
+        #min_latitude = specified_shapefile.bounds['miny'].min()
+        #max_latitude = specified_shapefile.bounds['maxy'].max()
 
-        min_longitude, max_longitude = df[space[0]].min(), df[space[0]].max()
+        min_longitude,max_longitude = df[space[0]].min(), df[space[0]].max()
         min_latitude, max_latitude = df[space[1]].min(), df[space[1]].max()
 
         # 创建一个空GeoDataFrame用于存储插值结果
-        geometry = [
-            Point(xy)
-            for xy in zip(
-                np.tile(np.linspace(min_longitude, max_longitude, num), num), np.repeat(np.linspace(min_latitude, max_latitude, num), num)
-            )
-        ]
-        crs = {"init": "epsg:4326"}  # EPSG:4326坐标系
+        geometry = [Point(xy) for xy in zip(np.tile(np.linspace(min_longitude, max_longitude, num), num),
+                                             np.repeat(np.linspace(min_latitude, max_latitude, num), num))]
+        crs = {'init': 'epsg:4326'}  # EPSG:4326坐标系
         interpolated_gdf = gpd.GeoDataFrame(pd.DataFrame(), crs=crs, geometry=geometry)
 
         # 循环遍历每个属性进行插值
         for attribute in attributes:
             data = df[attribute]
-            OK = OrdinaryKriging(longitude, latitude, data, variogram_model="spherical", nlags=3)
-            z, ss = OK.execute("grid", np.linspace(min_longitude, max_longitude, num), np.linspace(min_latitude, max_latitude, num))
+            OK = OrdinaryKriging(longitude, latitude, data, variogram_model='spherical', nlags=3)
+            z, ss = OK.execute('grid', np.linspace(min_longitude, max_longitude, num), np.linspace(min_latitude, max_latitude, num))
             interpolated_gdf[attribute] = z.flatten()
 
         # 保存插值结果为shapefile文件和数据表
@@ -197,25 +174,26 @@ class allp:
         interpolated_gdf.to_file(interpolated_data_shp_path)
 
         # 提取经度和纬度信息
-        interpolated_gdf["经度"] = interpolated_gdf.geometry.apply(lambda geom: geom.x)
-        interpolated_gdf["纬度"] = interpolated_gdf.geometry.apply(lambda geom: geom.y)
+        interpolated_gdf['经度'] = interpolated_gdf.geometry.apply(lambda geom: geom.x)
+        interpolated_gdf['纬度'] = interpolated_gdf.geometry.apply(lambda geom: geom.y)
 
         # 将经度和纬度列放在前两列
-        interpolated_gdf = interpolated_gdf[["经度", "纬度"] + attributes]
+        interpolated_gdf = interpolated_gdf[['经度', '纬度'] + attributes]
 
         interpolated_data_xlsx_path = f"./{outpath}/{file_name}.xlsx"
-        interpolated_gdf.to_excel(interpolated_data_xlsx_path, index=False, engine="xlsxwriter")
+        interpolated_gdf.to_excel(interpolated_data_xlsx_path, index=False, engine='xlsxwriter')
         print("插值数据保存成功！")
-        print("文件名称")
+        print('文件名称')
         print(f"./{outpath}/{file_name}.xlsx")
         return f"./{outpath}", f"./{outpath}/{file_name}.xlsx"
+
 
     def cluster_with_methods(self, covariate_data, clu_folder, n_cluster=None):
         # 读取协变量数据为 Pandas DataFrame
         df = pd.read_excel(covariate_data)
 
         # 选择要用于聚类的属性列
-        # selected_columns = ['Pb', 'Cd', 'As_', 'Cr', 'Hg', 'Zn', 'Cu', 'K', 'P', 'N', 'Si', 'Se', 'Na', 'Mo', 'Mn', 'Mg', 'La',
+        #selected_columns = ['Pb', 'Cd', 'As_', 'Cr', 'Hg', 'Zn', 'Cu', 'K', 'P', 'N', 'Si', 'Se', 'Na', 'Mo', 'Mn', 'Mg', 'La',
         #                    'Fe', 'Ca', 'Al', 'Ni', 'Ti', 'pH', 'CEC', 'SOM']
 
         selected_columns = label + col
@@ -223,22 +201,22 @@ class allp:
         data = df[selected_columns].values
 
         # 执行不同的聚类算法
-        if method == "KMeans":
+        if method == 'KMeans':
             if n_cluster is None:
                 raise ValueError("参数 n_cluster 不能为空！")
             clustering_method = KMeans(n_clusters=n_cluster)
             labels = clustering_method.fit_predict(data)
-        elif method == "Agglomerative":
+        elif method == 'Agglomerative':
             if n_cluster is None:
                 raise ValueError("参数 n_cluster 不能为空！")
             clustering_method = AgglomerativeClustering(n_clusters=n_cluster)
             labels = clustering_method.fit_predict(data)
-        elif method == "Spectral":
+        elif method == 'Spectral':
             if n_cluster is None:
                 raise ValueError("参数 n_cluster 不能为空！")
-            clustering_method = SpectralClustering(n_clusters=n_cluster, affinity="nearest_neighbors", n_neighbors=10)
+            clustering_method = SpectralClustering(n_clusters=n_cluster, affinity='nearest_neighbors', n_neighbors=10)
             labels = clustering_method.fit_predict(data)
-        elif method == "GMM":
+        elif method == 'GMM':
             if n_cluster is None:
                 raise ValueError("参数 n_cluster 不能为空！")
             clustering_method = GaussianMixture(n_components=n_cluster)
@@ -247,12 +225,12 @@ class allp:
             raise ValueError("不支持的聚类方法！")
 
         # 将聚类结果添加到 DataFrame
-        df["Cluster"] = labels
+        df['Cluster'] = labels
 
         # 根据聚类结果拆分 DataFrame
         dfs = []
         for cluster_id in range(len(set(labels))):
-            cluster_df = df[df["Cluster"] == cluster_id].copy()
+            cluster_df = df[df['Cluster'] == cluster_id].copy()
             dfs.append(cluster_df)
 
         # 保存每个类别的 DataFrame 到独立的 Excel 文件
@@ -260,12 +238,13 @@ class allp:
             output_file = f"./{clu_folder}/cluster_{i+1}.xlsx"
             cluster_df.to_excel(output_file, index=False)
 
-    def mul_cluster(self, covariate_data, clu_folder, n_cluster):
+
+    def mul_cluster(self,covariate_data, clu_folder, n_cluster):
         # 读取协变量数据为 Pandas DataFrame
         df = pd.read_excel(covariate_data)
 
         # 选择要用于聚类的属性列
-        # selected_columns = ['Pb', 'Cd', 'As_', 'Cr', 'Hg', 'Zn', 'Cu', 'K', 'P', 'N', 'Si', 'Se', 'Na', 'Mo', 'Mn', 'Mg', 'La',
+        #selected_columns = ['Pb', 'Cd', 'As_', 'Cr', 'Hg', 'Zn', 'Cu', 'K', 'P', 'N', 'Si', 'Se', 'Na', 'Mo', 'Mn', 'Mg', 'La',
         #                   'Fe', 'Ca', 'Al', 'Ni', 'Ti', 'pH', 'CEC', 'SOM']
         selected_columns = col + label
         # 提取选定的属性列数据
@@ -278,12 +257,12 @@ class allp:
         labels = kmeans.labels_
 
         # 将聚类结果添加到 DataFrame
-        df["Cluster"] = labels
+        df['Cluster'] = labels
 
         # 根据聚类结果拆分 DataFrame
         dfs = []
         for cluster_id in range(num_clusters):
-            cluster_df = df[df["Cluster"] == cluster_id].copy()
+            cluster_df = df[df['Cluster'] == cluster_id].copy()
             dfs.append(cluster_df)
 
         # 保存每个类别的 DataFrame 到独立的 Excel 文件
@@ -291,14 +270,14 @@ class allp:
             output_file = f"./{clu_folder}/cluster_{i+1}.xlsx"
             cluster_df.to_excel(output_file, index=False)
 
-    # 散点与SHP映射
-    def poi2image(self, all_file, cluster_folder, excel_name, outfile_path):
+
+    def poi2image(self,all_file, cluster_folder, excel_name, outfile_path):
         alldata = pd.read_excel(all_file)
 
         # 创建绘图对象
         fig, ax = plt.subplots()
         # 绘制shp边界
-        data.plot(ax=ax, facecolor="none", edgecolor="black")
+        data.plot(ax=ax, facecolor='none', edgecolor='black')
         m = 1
         c = 1
         handles = []
@@ -307,8 +286,8 @@ class allp:
             df = pd.read_excel(f"./{cluster_folder}/{j}")
 
             # 经度和纬度数据
-            longitude = df.loc[:, "经度"]
-            latitude = df.loc[:, "纬度"]
+            longitude = df.loc[:, '经度']
+            latitude = df.loc[:, '纬度']
 
             # 将散点数据转换为二维坐标数组
             points = np.column_stack((longitude, latitude))
@@ -321,83 +300,83 @@ class allp:
                 expanded_polygon = boundary.buffer(0.003)
                 # 单个多边形边界
                 x, y = expanded_polygon.exterior.xy
-                # boundary_x = [x for x, y in boundary.exterior.coords]
-                # boundary_y = [y for x, y in boundary.exterior.coords]
+                #boundary_x = [x for x, y in boundary.exterior.coords]
+                #boundary_y = [y for x, y in boundary.exterior.coords]
                 # 使用B-spline曲线拟合
-                # tck, u = interpolate.splprep([boundary_x, boundary_y], s=0)
+                #tck, u = interpolate.splprep([boundary_x, boundary_y], s=0)
                 # 定义新的曲线参数，增加插值点的数量以获得平滑的曲线
-                # u_new = np.linspace(u.min(), u.max(), 1000)
-                # x_new, y_new = interpolate.splev(u_new, tck)
+                #u_new = np.linspace(u.min(), u.max(), 1000)
+                #x_new, y_new = interpolate.splev(u_new, tck)
                 # 绘制平滑后的曲线
-                # plt.plot(x_new, y_new, color=colors[j])
+                #plt.plot(x_new, y_new, color=colors[j])
                 ax.plot(x, y, color=colors[c], label=j)  # 添加label参数
                 handles.append(ax.scatter([], [], color=colors[c]))
                 # labels.append(j)
                 gdf = gpd.GeoDataFrame(geometry=[expanded_polygon])
-                gdf.crs = "EPSG:4326"
+                gdf.crs = 'EPSG:4326'
 
                 # 设置输出文件的路径和名称
-                output_file_name = "boundary" + str(m) + ".shp"
+                output_file_name = 'boundary'+str(m)+'.shp'
                 outfilepath = f"./{outfile_path}/{output_file_name}"
                 m = m + 1
 
                 # 将GeoDataFrame保存为shp文件
-                gdf.to_file(outfilepath, driver="ESRI Shapefile")
+                gdf.to_file(outfilepath, driver='ESRI Shapefile')
                 df = pd.DataFrame()
 
                 for a in alldata.index:
-                    point = Point(alldata.loc[a, "经度"], alldata.loc[a, "纬度"])
+                    point = Point(alldata.loc[a, '经度'], alldata.loc[a, '纬度'])
                     if point.within(boundary):
                         df1 = pd.DataFrame(alldata.loc[a]).T  # 将Series转换为DataFrame
                         df = pd.concat([df, df1], axis=0, ignore_index=True)
                 if len(df) > 20:
-                    excel_name_out = "区域" + str(m - 1) + ".xlsx"
-                    labels_name = "区域" + str(m - 1)
+                    excel_name_out = '区域' + str(m - 1) + '.xlsx'
+                    labels_name = '区域' + str(m - 1)
                     labels.append(labels_name)
                     excel_path_out = f"./{outfile_path}/{excel_name_out}"
                     df.to_excel(excel_path_out, index=False)
                 else:
-                    m = m - 1
+                    m=m-1
 
             elif isinstance(boundary, MultiPolygon):
                 # 多个多边形边界
                 # 绘制多边形
                 for polygon in boundary.geoms:
-                    # boundary_x = [x for x, y in polygon.exterior.coords]
-                    # boundary_y = [y for x, y in polygon.exterior.coords]
+                    #boundary_x = [x for x, y in polygon.exterior.coords]
+                    #boundary_y = [y for x, y in polygon.exterior.coords]
                     # 使用B-spline曲线拟合
-                    # tck, u = interpolate.splprep([boundary_x, boundary_y], s=0)
+                    #tck, u = interpolate.splprep([boundary_x, boundary_y], s=0)
                     # 定义新的曲线参数，增加插值点的数量以获得平滑的曲线
-                    # u_new = np.linspace(u.min(), u.max(), 1000)
-                    # x_new, y_new = interpolate.splev(u_new, tck)
+                    #u_new = np.linspace(u.min(), u.max(), 1000)
+                    #x_new, y_new = interpolate.splev(u_new, tck)
                     # 绘制平滑后的曲线
-                    # plt.plot(x_new, y_new, color=colors[j])
+                    #plt.plot(x_new, y_new, color=colors[j])
                     expanded_polygon = polygon.buffer(0.003)
                     x, y = expanded_polygon.exterior.xy
                     ax.plot(x, y, color=colors[c], label=j)  # 添加label参数
                     handles.append(ax.scatter([], [], color=colors[c]))
                     # labels.append(j)
-                    # print(expanded_polygon)
+                    #print(expanded_polygon)
                     gdf = gpd.GeoDataFrame(geometry=[expanded_polygon])
 
-                    gdf.crs = "EPSG:4326"
+                    gdf.crs = 'EPSG:4326'
                     # 设置输出文件的路径和名称
-                    output_file_name = "boundary" + str(m) + ".shp"
+                    output_file_name = 'boundary'+str(m)+'.shp'
                     outfilepath = f"./{outfile_path}/{output_file_name}"
-                    m = m + 1
+                    m=m+1
                     # 将GeoDataFrame保存为shp文件
-                    gdf.to_file(outfilepath, driver="ESRI Shapefile")
+                    gdf.to_file(outfilepath, driver='ESRI Shapefile')
 
                     df = pd.DataFrame()
                     for a in alldata.index:
-                        point = Point(alldata.loc[a, "经度"], alldata.loc[a, "纬度"])
+                        point = Point(alldata.loc[a, '经度'], alldata.loc[a, '纬度'])
                         if point.within(polygon):
                             df1 = pd.DataFrame(alldata.loc[a]).T  # 将Series转换为DataFrame
                             df = pd.concat([df, df1], axis=0, ignore_index=True)
 
                     if len(df) > 20:
-                        excel_name_out = "区域" + str(m - 1) + ".xlsx"
-                        labels_name = "区域" + str(m - 1)
+                        excel_name_out = '区域'+str(m-1)+'.xlsx'
+                        labels_name = '区域' + str(m - 1)
                         labels.append(labels_name)
                         excel_path_out = f"./{outfile_path}/{excel_name_out}"
                         df.to_excel(excel_path_out, index=False)
@@ -405,65 +384,65 @@ class allp:
                         m = m - 1
 
             # 绘制边界
-            # plt.plot(*boundary.exterior.xy, color=colors[j])
+            #plt.plot(*boundary.exterior.xy, color=colors[j])
             # 绘制散点图
             plt.scatter(longitude, latitude, color=colors[c], s=1)
             c = c + 1
         # 绘制多边形
-        # data.plot(ax=ax, facecolor='none', edgecolor='black')
-        data.plot(ax=ax, facecolor="none", edgecolor="black")
+        #data.plot(ax=ax, facecolor='none', edgecolor='black')
+        data.plot(ax=ax, facecolor='none', edgecolor='black')
         handles = list(set(handles))
         labels = list(set(labels))
-        plt.legend(handles, labels, loc="upper left")
+        plt.legend(handles, labels, loc='upper left')
 
         # 设置坐标轴范围
-        ax.set_xlim(data.total_bounds[0] - 0.2, data.total_bounds[2] + 0.01)
-        ax.set_ylim(data.total_bounds[1] - 0.01, data.total_bounds[3] + 0.01)
+        ax.set_xlim(data.total_bounds[0]-0.2, data.total_bounds[2]+0.01)
+        ax.set_ylim(data.total_bounds[1]-0.01, data.total_bounds[3]+0.01)
 
-        plt.axis("off")  # 不显示坐标轴
+        plt.axis('off')  # 不显示坐标轴
         # 设置图形属性
-        # ax.set_aspect('equal')  # 保持纵横比相等
+        #ax.set_aspect('equal')  # 保持纵横比相等
 
-        plt.savefig(f"./final_result/过程{m-1}.png")
+        plt.savefig(f'./final_result/过程{m-1}.png')
         # 显示图形
-        # plt.show()
-        return m - 1
+        #plt.show()
+        return m-1
 
-    def log_test(self, n, excel_name):
+    def log_test(self,n,excel_name):
         all_excel = []
         fail_excel = []
-        for i in range(1, n + 1):
-            excel_file = excel_name + str(i) + ".xlsx"
+        for i in range(1,n+1):
+            excel_file = excel_name+str(i) +'.xlsx'
             all_excel.append(excel_file)
         for exc in all_excel:
             fail = self.logi_exam(exc)
             if fail:
                 fail_excel.append(fail)
         suce_excel = [x for x in all_excel if x not in fail_excel]
-        print("通过检验的excel为:")
+        print('通过检验的excel为:')
         print(suce_excel)
-        print("未通过检验的excel为:")
+        print('未通过检验的excel为:')
         print(fail_excel)
         return suce_excel, fail_excel
 
-    def log_test_2(self, rmse_thres, excel_path, excel_list):
+    def log_test_2(self,rmse_thres, excel_path, excel_list):
         all_excel = []
         fail_excel = []
         for i in excel_list:
-            excel_file = f"./{excel_path}/{i}"
+            excel_file = f'./{excel_path}/{i}'
             all_excel.append(excel_file)
         for exc in all_excel:
             fail = self.logi_exam(exc, rmse_thres)
             if fail:
                 fail_excel.append(fail)
         suce_excel = [x for x in all_excel if x not in fail_excel]
-        print("通过检验的excel为:")
+        print('通过检验的excel为:')
         print(suce_excel)
-        print("未通过检验的excel为:")
+        print('未通过检验的excel为:')
         print(fail_excel)
         return suce_excel, fail_excel
 
-    def check_values_within_range(self, excel_file1, excel_file2):  # 第一个为插值excel
+    def check_values_within_range(self,excel_file1, excel_file2):  #第一个为插值excel
         # 读取两个Excel文件为DataFrame
         df1 = pd.read_excel(excel_file1)
         df2 = pd.read_excel(excel_file2)
@@ -498,12 +477,13 @@ class allp:
         row_index = list(set(row_ind))
         print(list(set(row_ind)))
 
-        return rows_outside_range, row_index  # 第一个为详细信息，包括没通过的行数，列名 #第二个只没通过的行数
+        return rows_outside_range, row_index  #第一个为详细信息，包括没通过的行数，列名 #第二个只没通过的行数
+
 
     def result_processing(self, excel_name):
         fig, ax = plt.subplots()
 
-        data.plot(ax=ax, facecolor="none", edgecolor="black")
+        data.plot(ax=ax, facecolor='none', edgecolor='black')
 
         c = 1
         handles = []
@@ -511,8 +491,8 @@ class allp:
         for j in excel_name:
             df = pd.read_excel(j)
 
-            longitude = df.loc[:, "经度"]
-            latitude = df.loc[:, "纬度"]
+            longitude = df.loc[:, '经度']
+            latitude = df.loc[:, '纬度']
 
             points = np.column_stack((longitude, latitude))
             try:
@@ -524,8 +504,8 @@ class allp:
                     x, y = expanded_polygon.exterior.xy
                     ax.plot(x, y, color=colors[c], label=j)  # 添加label参数
                     handles.append(ax.scatter([], [], color=colors[c]))
-                    parts = j.split("/")
-                    region = parts[-1].split(".")[0]  # 去掉扩展名部分
+                    parts = j.split('/')
+                    region = parts[-1].split('.')[0]  # 去掉扩展名部分
                     labels.append(region)
 
                 elif isinstance(boundary, MultiPolygon):
@@ -534,32 +514,31 @@ class allp:
                         x, y = expanded_polygon.exterior.xy
                         ax.plot(x, y, color=colors[c], label=j)  # 添加label参数
                         handles.append(ax.scatter([], [], color=colors[c]))
-                        parts = j.split("/")
-                        region = parts[-1].split(".")[0]  # 去掉扩展名部分
+                        parts = j.split('/')
+                        region = parts[-1].split('.')[0]  # 去掉扩展名部分
                         labels.append(region)
                 # 绘制散点图
-                # plt.scatter(longitude, latitude, color=colors[c], s=1)
+                #plt.scatter(longitude, latitude, color=colors[c], s=1)
                 c = c + 1
 
             except:
                 print("{}区域过小".format(j))
 
-        data.plot(ax=ax, facecolor="none", edgecolor="black")
+        data.plot(ax=ax, facecolor='none', edgecolor='black')
 
         # 设置坐标轴范围
         ax.set_xlim(data.total_bounds[0] - 0.2, data.total_bounds[2] + 0.01)
         ax.set_ylim(data.total_bounds[1] - 0.01, data.total_bounds[3] + 0.01)
 
-        plt.axis("off")
+        plt.axis('off')
         handles = list(set(handles))
         labels = list(set(labels))
-        plt.legend(handles, labels, loc="upper left")  # 将图例定位到右上角
+        plt.legend(handles, labels, loc='upper left')  # 将图例定位到右上角
 
-        plt.savefig("./final_result/result.png")
-        # plt.show()
+        plt.savefig('./final_result/result.png')
+        #plt.show()
 
-
-def data_processing(path, label, col):
+def data_processing(path, label,col):
     # 使用 pd.ExcelFile 打开 Excel 文件
 
     xls = pd.ExcelFile(path)
@@ -569,7 +548,7 @@ def data_processing(path, label, col):
     df_x = pd.read_excel(xls, xls.sheet_names[1])
     data_x = df_x[col]
     data_y = df_y[space + label]
-    df = pd.concat([data_y, data_x], axis=1)
+    df = pd.concat([data_y,data_x], axis=1)
     # # 检查 'As' 列是否存在
     # if 'As' in df.columns:
     #     # 替换 'As' 列的值
@@ -589,16 +568,14 @@ def data_processing(path, label, col):
     dir_path = os.path.dirname(path)
 
     # 拼接新文件的保存路径
-    new_path = os.path.join(dir_path, "test.xlsx")
+    new_path = os.path.join(dir_path, 'test.xlsx')
 
     # 保存为新的 Excel 文件
-    # df = df[field]
+    #df = df[field]
 
     df.to_excel(new_path, index=False)
     # 返回新文件的路径和所在地址
     return new_path
-
-
 # def grid_paint(kriexcel_list,grid_size,image_name):
 #     # 创建图形和轴对象
 #     fig, ax = plt.subplots()
@@ -642,14 +619,12 @@ def data_processing(path, label, col):
 #     plt.savefig(save_path)
 #     #plt.show() # 显示图形
 
-"""栅格化"""
 def grid_paint(kriexcel_list, grid_size, image_name, shp_file):
-
     # 创建图形和轴对象
     fig, ax = plt.subplots()
 
     i = 1
-    for excelname, shapefile in zip(kriexcel_list, shp_file):
+    for excelname,shapefile in zip(kriexcel_list, shp_file):
 
         # 读取shp文件
         shapefile = gpd.read_file(shapefile)
@@ -699,23 +674,23 @@ def grid_paint(kriexcel_list, grid_size, image_name, shp_file):
                     # 使用mask数组遮挡栅格图上的特定区域
         grid = np.ma.masked_where(~mask, grid)  # 使用~mask来反转mask数组，遮挡多边形外部的区域
 
-        i = i + 1
+        i = i+1
         # 绘制栅格图，并获取返回的图像对象
-        img = ax.imshow(grid, extent=[lon_min, lon_max, lat_min, lat_max], origin="lower", alpha=0.5)
+        img = ax.imshow(grid, extent=[lon_min, lon_max, lat_min, lat_max], origin='lower', alpha=0.5)
 
         # 绘制Shapefile的边界
-        shapefile.boundary.plot(ax=ax, color="red", linewidth=1)
+        shapefile.boundary.plot(ax=ax, color='red', linewidth=1)
         # 显示图形并保存图像文件
         # 添加颜色条
 
     # 绘制地图边界
     data = gpd.read_file(AmapPath)
-    data.boundary.plot(ax=ax, color="black", linewidth=1)
-    plt.xlabel("Longitude")
-    plt.ylabel("Latitude")
+    data.boundary.plot(ax=ax, color='black', linewidth=1)
+    plt.xlabel('Longitude')
+    plt.ylabel('Latitude')
     plt.colorbar(img, ax=ax)
-    # plt.show()
-    save_path = "./final_result/" + image_name + ".png"
+    #plt.show()
+    save_path = './final_result/'+image_name+'.png'
     plt.savefig(save_path)
 
 
@@ -749,11 +724,11 @@ def logistic_pre(kriexcel_name):
     mae = np.mean(absolute_errors)
     # 打印MAE值
 
-    parts = kriexcel_name.split("/")
-    region = parts[-1].split(".")[0]  # 去掉扩展名部分
+    parts = kriexcel_name.split('/')
+    region = parts[-1].split('.')[0]  # 去掉扩展名部分
     print(region)
 
-    print("正在回归:", region)
+    print('正在回归:', region)
     print("算法rmse:", rmse)
     print("MAE:", mae)
     print("r2:", r2)
@@ -761,16 +736,17 @@ def logistic_pre(kriexcel_name):
     # 删除列
     all_data = all_data.drop(label, axis=1)
     y_label = model.predict(X)
-    y_label = y_label - Y  # 误差
+    y_label = y_label - Y  #误差
     all_data[label] = y_label
-    newexcel_name = kriexcel_name.replace(".xlsx", "") + "_dif" + ".xlsx"
+    newexcel_name = kriexcel_name.replace('.xlsx', "")+'_dif'+'.xlsx'
     all_data.to_excel(newexcel_name, index=False)
     logpre_excel.append(newexcel_name)
 
-    region = region.replace("区域", "")
-    region = "region" + region
-    endframe.index = ["rmse", "mae", "r2"]
-    endframe[region] = [rmse, mae, r2]
+    region = region.replace('区域', '')
+    region = 'region'+region
+    endframe.index = ['rmse','mae','r2']
+    endframe[region] = [rmse,mae,r2]
+
 
     return rmse, mae, r2
 
@@ -804,8 +780,8 @@ def run():
 
     ###############回归检测##############
     stats.ui.progressBar.setValue(3)  # 进度条
-    # rmse_thres = 0.4
-    excel_name = f"./{boundary_folder}/区域"
+    #rmse_thres = 0.4
+    excel_name = f'./{boundary_folder}/区域'
     suce_excel, fail_excel = ap.log_test(n, excel_name)
     all_success_file = all_success_file + suce_excel
     all_fail_file = all_fail_file + fail_excel
@@ -813,12 +789,14 @@ def run():
     suce_excel2 = []
     fail_excel2 = []
 
+
     cluster_folder_fail = ap.create_timestamped_folder("cluster_again")
     boundary_folder_fail = ap.create_timestamped_folder("division_again")
     kringing_ex_folder = ap.create_timestamped_folder("kringing")
 
     kriexcel_list = []
-    print("重金属：", label)
+    print('重金属：',label)
+
 
     ############未通过区域再聚类###########
     for item in fail_excel:
@@ -837,26 +815,27 @@ def run():
         sName = ap.get_shp_filenames(boundary_folder_fail)
         print(sName)
 
+
         for a in eName:
             try:
-                # 读取表格数据
-                path = f"./{boundary_folder_fail}/{a}"
+                 # 读取表格数据
+                path = f'./{boundary_folder_fail}/{a}'
                 df = pd.read_excel(path)
 
                 # 属性列表
                 attributes = [field_ for field_ in field if field_ not in ["经度", "纬度"]]
 
-                print("属性:", attributes)
+                print('属性:',attributes)
 
-                longitude = df["经度"]
-                latitude = df["纬度"]
+                longitude = df['经度']
+                latitude = df['纬度']
                 a = a[:-5]
                 k_path, exk = ap.kringing(df, attributes, longitude, latitude, a, kringing_ex_folder, kringing_num)
                 print(exk)
                 kriexcel_list.append(exk)
 
                 ############插值检验###########
-                all_row, row = ap.check_values_within_range(exk, f"./{boundary_folder_fail}/{a}")
+                all_row, row = ap.check_values_within_range(exk, f'./{boundary_folder_fail}/{a}')
                 # count = 0
                 # while(len(row) != 0):
                 #     for f in field:
@@ -888,9 +867,9 @@ def run():
     print(boundary_folder)
     sName = ap.get_shp_filenames(boundary_folder)
     print(sName)
-    shp_file = []  # shp_file为完整边界存储路径
+    shp_file = [] #shp_file为完整边界存储路径
     for i in sName:
-        shpname = boundary_folder + "/" + i
+        shpname = boundary_folder+'/'+i
         shp_file.append(shpname)
     print(shp_file)
 
@@ -902,22 +881,23 @@ def run():
             # 读取表格数据
             df = pd.read_excel(a)
 
-            parts = a.split("/")
-            region = parts[-1].split(".")[0]  # 去掉扩展名部分
+            parts = a.split('/')
+            region = parts[-1].split('.')[0]  # 去掉扩展名部分
             print(region)
 
             # 属性列表
             attributes = [field_ for field_ in field if field_ not in ["经度", "纬度"]]
-            longitude = df["经度"]
-            latitude = df["纬度"]
+            longitude = df['经度']
+            latitude = df['纬度']
 
-            k_path, exk = ap.kringing(df, attributes, longitude, latitude, region, kringing_ex_folder, kringing_num)
+            k_path, exk = ap.kringing(df, attributes, longitude, latitude, region,
+                                      kringing_ex_folder, kringing_num)
 
             print(exk)
             kriexcel_list.append(exk)
 
             ############插值检验###########
-            all_row, row = ap.check_values_within_range(exk, f"./{boundary_folder_fail}/{region}")
+            all_row, row = ap.check_values_within_range(exk, f'./{boundary_folder_fail}/{region}')
             # count = 0
             # while(len(row) != 0):
             #     for f in field:
@@ -937,21 +917,22 @@ def run():
         if i_label < len(sName):
             i_label = i_label + 1
 
+
     for i in kriexcel_list:
         logistic_pre(i)
 
-    grid_paint(kriexcel_list, grid_size, "gridmap", shp_file)
-    grid_paint(logpre_excel, grid_size, "gridmap_dif", shp_file)
+    grid_paint(kriexcel_list, grid_size, 'gridmap',shp_file)
+    grid_paint(logpre_excel, grid_size, 'gridmap_dif',shp_file)
 
     stats.ui.progressBar.setValue(5)  # 进度条
     print(kriexcel_list)
 
     ap.result_processing(kriexcel_list)
 
-    return all_success_file, all_fail_file, suce_excel2, fail_excel2
+    return all_success_file,all_fail_file,suce_excel2,fail_excel2
 
 
-"""
+
 class XCombobox(QComboBox):
     itemChecked = Signal(list)
     def __init__(self, parent=None):
@@ -1164,4 +1145,4 @@ stats.ui.show()
 #print(stats.choose_file())
 
 app.exec_()
-"""
+
