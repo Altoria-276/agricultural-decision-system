@@ -643,6 +643,8 @@ def data_processing(path, label, col):
 #     #plt.show() # 显示图形
 
 """栅格化"""
+
+
 def grid_paint(kriexcel_list, grid_size, image_name, shp_file):
 
     # 创建图形和轴对象
