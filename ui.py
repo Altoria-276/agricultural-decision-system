@@ -31,6 +31,34 @@ def ui():
                     gr.Image()
                     gr.Image()
                 gr.Image(label="污染源及污染路径")
+        with gr.Tab("风险区分析"):
+            gr.Markdown("# 土壤重金属未来超标风险区分析")
+            with gr.Row(equal_height=True):
+                with gr.Column():
+                    gr.File(label="基准数据")
+                    gr.File(label="监测数据")
+                with gr.Column():
+                    gr.File(label="行政区划地图文件")
+                    gr.File(label="土地利用现状图")
+            with gr.Row(equal_height=True):
+                with gr.Column():
+                    gr.Markdown("累积趋势分析")
+                    with gr.Row(equal_height=True):
+                        gr.Dropdown(["2020"], label="指定年份")
+                        gr.Button("计算")
+                    with gr.Row(equal_height=True):
+                        gr.Image(label="监测点位累积幅度空间分布图")
+                        with gr.Column():
+                            gr.Image(label="监测点位累积幅度占比统计")
+                            gr.Image(label="监测数据年际变化")
+
+                with gr.Column():
+                    gr.Markdown("超标风险区分析")
+                    with gr.Row(equal_height=True):
+                        gr.Dropdown(["2020"], label="预测年份")
+                        gr.Button("计算")
+                    with gr.Row(equal_height=True):
+                        gr.Image(label="未来超标风险区空间分布图")
 
     ui.launch(share=False)
 
