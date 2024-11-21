@@ -19,6 +19,7 @@ def kringing(self, df, attributes, longitude, latitude, file_name,  outpath, num
     #min_latitude = specified_shapefile.bounds['miny'].min()
     #max_latitude = specified_shapefile.bounds['maxy'].max()
 
+    print(' ')
     min_longitude, max_longitude = df[space[0]].min(), df[space[0]].max()
     min_latitude, max_latitude = df[space[1]].min(), df[space[1]].max()
 
