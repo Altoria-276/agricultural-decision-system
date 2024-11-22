@@ -391,7 +391,7 @@ class allp:
                     df = pd.DataFrame()
                     for a in alldata.index:
                         point = Point(alldata.loc[a, "经度"], alldata.loc[a, "纬度"])
-                        if point.within(polygon):
+                        if point.within(polygon):           # TODO--判断点是否在多边形内
                             df1 = pd.DataFrame(alldata.loc[a]).T  # 将Series转换为DataFrame
                             df = pd.concat([df, df1], axis=0, ignore_index=True)
 
@@ -698,7 +698,7 @@ def grid_paint(kriexcel_list, grid_size, image_name, shp_file):
                 if polygon.contains(point):
                     mask[i, j] = True
 
-                    # 使用mask数组遮挡栅格图上的特定区域
+                # 使用mask数组遮挡栅格图上的特定区域
         grid = np.ma.masked_where(~mask, grid)  # 使用~mask来反转mask数组，遮挡多边形外部的区域
 
         i = i + 1
@@ -953,7 +953,7 @@ def run():
     return all_success_file, all_fail_file, suce_excel2, fail_excel2
 
 
-"""
+
 class XCombobox(QComboBox):
     itemChecked = Signal(list)
     def __init__(self, parent=None):
@@ -1166,4 +1166,4 @@ stats.ui.show()
 #print(stats.choose_file())
 
 app.exec_()
-"""
+

@@ -1,11 +1,83 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import warnings
 import geopandas as gpd
 from pykrige.ok import OrdinaryKriging
 from alphashape import alphashape
 from shapely.geometry import Polygon, MultiPolygon, Point
 
+
+np.random.seed(42)  # 设置种子值为42
+plt.rcParams["font.sans-serif"] = ["SimHei"]    # 用来正常显示中文标签
+plt.rcParams["axes.unicode_minus"] = False      # 用来正常显示负号
+
+warnings.filterwarnings("ignore")
+# 全局，错误数据的索引
+globals_dict = {}
+globals_right = {}
+# 显示所有列
+pd.set_option("display.max_columns", None)
+# 显示所有行
+pd.set_option("display.max_rows", None)
+
+# 忽略特定类型的警告
+warnings.filterwarnings("ignore", category=FutureWarning)  # 忽略FutureWarning
+warnings.filterwarnings("ignore", category=UserWarning)  # 忽略UserWarning
+
+# 颜色列表
+colors = [
+    "red",
+    "cyan",
+    "pink",
+    "orange",
+    "limegreen",
+    "salmon",
+    "grey",
+    "gold",
+    "darkgreen",
+    "royalblue",
+    "darkmagenta",
+    "darkgoldenrod",
+    "maroon",
+    "saddlebrown",
+    "lawngreen",
+    "olive",
+    "navy",
+]
+
+space = ["东经", "北纬"]
+label = []          # label为重金属
+col = []            # col为环境协变量
+kringing_num = 80   # 插值50x50
+logpre_excel = []   # 克里金插值后生成的excel名称列表，预测,重金属做差，之后保存成一个新的excel名称列表
+grid_size = 0.01    # 设置栅格大小
+rmse_thres = 0.4    # rmse_thres为阈值
+# shapefile = './数据/湘潭镇界.shp'
+# data = gpd.read_file(shapefile)
+endframe = pd.DataFrame()
+
+
+class Map:
+    def __init__(self, file_path, ):
+        self.gdf = gpd.read_file(file_path)
+        self.geo_info = self.gdf.geometry                       # 提取地图文件中的地理对象信息，包括地图边界
+        self.boundary = self.gdf.boundary.to_crs(epsg=4326)     # 地图边界
+
+    def is_inside(self, lon, lat):
+        point = Point(lon, lat)
+        is_within = point.within(self.boundary)
+        return is_within
+
+
+
+"""
+class Grid:
+    def __init__(self):
+
+
+    def
+"""
 
 """克里金插值"""
 
@@ -20,7 +92,6 @@ def kringing(self, df, attributes, longitude, latitude, file_name, outpath, num)
     # min_latitude = specified_shapefile.bounds['miny'].min()
     # max_latitude = specified_shapefile.bounds['maxy'].max()
 
-    print(" ")
     min_longitude, max_longitude = df[space[0]].min(), df[space[0]].max()
     min_latitude, max_latitude = df[space[1]].min(), df[space[1]].max()
 
