@@ -1,7 +1,7 @@
-from random import choice, choices
-from turtle import update
 import gradio as gr
 import pandas as pd
+
+from regression import RegressionProcess
 
 
 def ui():
@@ -15,14 +15,14 @@ def ui():
                 model_input = gr.Dropdown(choices=["Ridge", "Linear", "C"], label="选择拟合模型", scale=3)
 
             with gr.Row(equal_height=True):
-                feather_input = gr.Dropdown(choices=[], label="自变量特征选择", multiselect=True, interactive=True)
-                target_input = gr.Dropdown(choices=[], label="因变量特征选择", interactive=True)
+                feature_input = gr.Dropdown(choices=[], label="自变量特征选择", multiselect=True, interactive=True, scale=3)
+                target_input = gr.Dropdown(choices=[], label="因变量特征选择", interactive=True, scale=1)
                 run_button = gr.Button(value="运行", scale=1)
             with gr.Row(equal_height=True):
                 gr.Image(label="结果因果模型")
 
                 with gr.Column():
-                    gr.Image(label="贡献率分析")
+                    img2_output = gr.Image(label="贡献率分析")
                     gr.Image(label="变化分析影响")
         with gr.Tab("路径解析"):
             gr.Markdown("# 潜在历史污染源及污染路径解析")
@@ -68,6 +68,8 @@ def ui():
                     with gr.Row(equal_height=True):
                         gr.Image(label="未来超标风险区空间分布图")
 
+        regression_model = RegressionProcess()
+
         file_path_input.change(
             fn=lambda file_path: gr.update(choices=pd.ExcelFile(file_path).sheet_names),
             inputs=file_path_input,
@@ -77,17 +79,25 @@ def ui():
         def sheet_change(file_path: str, sheet_name: str):
             data = pd.ExcelFile(file_path).parse(sheet_name)
             update = gr.update(choices=data.columns.to_list())
+            regression_model.load_model(model_input.value)
+            regression_model.data = data
             return update, update
 
-        sheet_name_input.change(fn=sheet_change, inputs=[file_path_input, sheet_name_input], outputs=[target_input, feather_input])
+        sheet_name_input.change(fn=sheet_change, inputs=[file_path_input, sheet_name_input], outputs=[target_input, feature_input])
 
-        # target_input.change(
-        #     fn=lambda file_path, sheet_name, target_name: gr.update(
-        #         choices=[col for col in pd.ExcelFile(file_path).parse(sheet_name).columns.to_string() if col != target_name]
-        #     ),
-        #     inputs=[file_path_input, sheet_name_input, target_input],
-        #     outputs=feather_input,
-        # )
+        def target_change(target: str):
+            if regression_model:
+                regression_model.target = target
+
+        target_input.change(fn=target_change, inputs=target_input)
+
+        def feature_change(feature):
+            if regression_model:
+                regression_model.feature = feature
+
+        feature_input.change(fn=feature_change, inputs=feature_input)
+
+        run_button.click(fn=regression_model.run, outputs=img2_output)
 
     ui.launch(share=False)
 
