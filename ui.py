@@ -1,4 +1,7 @@
 import gradio as gr
+import pandas as pd
+
+from regression import RegressionProcess
 
 
 def ui():
@@ -7,14 +10,19 @@ def ui():
         with gr.Tab("影响分析"):
             gr.Markdown("# 现存污染源贡献量变化影响分析")
             with gr.Row(equal_height=True):
-                gr.File(label="文件路径", scale=3)
-                gr.Dropdown(choices=["A", "B", "C"], label="选择拟合模型", scale=3)
-                gr.Button(value="运行", scale=1)
+                file_path_input = gr.File(label="文件路径", scale=3)
+                sheet_name_input = gr.Dropdown(choices=["无"], value="无", label="选择数据页", interactive=True)
+                model_input = gr.Dropdown(choices=["Ridge", "Linear", "C"], label="选择拟合模型", scale=3)
+
+            with gr.Row(equal_height=True):
+                feature_input = gr.Dropdown(choices=[], label="自变量特征选择", multiselect=True, interactive=True, scale=3)
+                target_input = gr.Dropdown(choices=[], label="因变量特征选择", interactive=True, scale=1)
+                run_button = gr.Button(value="运行", scale=1)
             with gr.Row(equal_height=True):
                 gr.Image(label="结果因果模型")
 
                 with gr.Column():
-                    gr.Image(label="贡献率分析")
+                    img2_output = gr.Image(label="贡献率分析")
                     gr.Image(label="变化分析影响")
         with gr.Tab("路径解析"):
             gr.Markdown("# 潜在历史污染源及污染路径解析")
@@ -59,6 +67,37 @@ def ui():
                         gr.Button("计算")
                     with gr.Row(equal_height=True):
                         gr.Image(label="未来超标风险区空间分布图")
+
+        regression_model = RegressionProcess()
+
+        file_path_input.change(
+            fn=lambda file_path: gr.update(choices=pd.ExcelFile(file_path).sheet_names),
+            inputs=file_path_input,
+            outputs=sheet_name_input,
+        )
+
+        def sheet_change(file_path: str, sheet_name: str):
+            data = pd.ExcelFile(file_path).parse(sheet_name)
+            update = gr.update(choices=data.columns.to_list())
+            regression_model.load_model(model_input.value)
+            regression_model.data = data
+            return update, update
+
+        sheet_name_input.change(fn=sheet_change, inputs=[file_path_input, sheet_name_input], outputs=[target_input, feature_input])
+
+        def target_change(target: str):
+            if regression_model:
+                regression_model.target = target
+
+        target_input.change(fn=target_change, inputs=target_input)
+
+        def feature_change(feature):
+            if regression_model:
+                regression_model.feature = feature
+
+        feature_input.change(fn=feature_change, inputs=feature_input)
+
+        run_button.click(fn=regression_model.run, outputs=img2_output)
 
     ui.launch(share=False)
 

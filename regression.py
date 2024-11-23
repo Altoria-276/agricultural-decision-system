@@ -1,0 +1,60 @@
+from typing import List
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.linear_model import Ridge
+from matplotlib import rcParams
+import matplotlib
+import os
+
+# 设置字体为 macOS 系统自带的中文字体
+matplotlib.rcParams["font.sans-serif"] = ["SimHei"]
+matplotlib.rcParams["axes.unicode_minus"] = False
+
+
+class RegressionProcess:
+    def __init__(self, model: str = None, data: pd.DataFrame = None, feature: List[str] = None, target: str = None):
+        self.data = data
+        self.feature = feature
+        self.target = target
+        if model:
+            self.model = self.load_model(model)
+
+    def load_model(self, model: str):
+        if model == "Ridge":
+            self.model = Ridge()
+        else:
+            self.model = Ridge()
+
+    def run(self):
+        X, y = self.data[self.feature], self.data[self.target]
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+        # 模型训练
+        self.model.fit(X_train, y_train)
+
+        # 预测
+        y_pred = self.model.predict(X_test)
+
+        # 计算评估指标
+        mse = mean_squared_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+        coefficients_df = pd.DataFrame({"Feature": X.columns, "Coefficient": self.model.coef_})
+        coefficients = self.model.coef_
+
+        # 计算绝对值权重
+        abs_coefficients = abs(coefficients)
+
+        # 绘制饼图
+        fig = plt.figure(figsize=(10, 8))
+        plt.pie(abs_coefficients, labels=self.feature, autopct="%1.1f%%", startangle=90)
+        plt.title("特征权重的绝对值饼图")
+        plt.axis("equal")  # 保持饼图为圆形
+
+        img_path = os.path.join(".", "Images", "img2.png")
+        fig.savefig(img_path)
+        plt.close(fig)
+
+        return img_path
