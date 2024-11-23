@@ -7,7 +7,7 @@ import geopandas as gpd
 from pykrige.ok import OrdinaryKriging
 from alphashape import alphashape
 from shapely.geometry import Polygon, MultiPolygon, Point
-from math import ceil
+from math import ceil, floor
 
 
 np.random.seed(42)  # 设置种子值为42
@@ -121,8 +121,8 @@ class Grid:
         if (self.init_x <= x <= (self.init_x + self.col_num * self.size_x)) and (
             (self.init_y - self.row_num * self.size_y) <= y <= self.init_y
         ):
-            col = ceil((x - self.init_x) / self.size_x)
-            row = ceil((self.init_y - y) / self.size_y)
+            col = floor((x - self.init_x) / self.size_x)
+            row = floor((self.init_y - y) / self.size_y)
         else:
             raise ValueError("点位超出栅格范围")
         return row, col
@@ -135,7 +135,9 @@ class Grid:
                 center_x = self.init_x + (col + 0.5) * self.size_x
                 center_y = self.init_y - (row + 0.5) * self.size_y
 
-                self.cell_matrix[row][col] = Cell(lon=center_x, lat=center_y, is_valid=self.bg.is_inside(center_x, center_y))
+                self.cell_matrix[row][col] = Cell(
+                    lon=center_x, lat=center_y, bg_map=self.bg, bg_grid=self, is_valid=self.bg.is_inside(center_x, center_y)
+                )
 
     def dots_mapping(self, dots_df):
         """
@@ -166,15 +168,17 @@ class Grid:
 
 
 class Cell:
-    def __init__(self, lon: float, lat: float, is_valid: bool = True):
+    def __init__(self, lon: float, lat: float, bg_map: Map, bg_grid: Grid, is_valid: bool = True):
         self.lon: float = lon
         self.lat: float = lat
         self.dots_list: List[Dot] = []
         self.focus_dot: Optional[Dot] = None
         self.is_valid: bool = True
+        self.bg_map: Map = bg_map
+        self.bg_grid: Grid = bg_grid
 
-        def __repr__(self):
-            return f"Cell(lon={self.lone}, lat={self.lat}, is_valid={self.is_valid})"
+    def __repr__(self):
+        return f"Cell(lon={self.lon}, lat={self.lat}, is_valid={self.is_valid})"
 
     def calc_focus(self):
         """
@@ -183,11 +187,10 @@ class Cell:
         if self.dots_list:
             avg_lon = sum(dot.lon for dot in self.dots_list) / len(self.dots_list)
             avg_lat = sum(dot.lat for dot in self.dots_list) / len(self.dots_list)
-            self.focus_dot = Dot(lon=avg_lon, lat=avg_lat, bg_map=self.bg, bg_grid=self, dot_type=2)
+            self.focus_dot = Dot(lon=avg_lon, lat=avg_lat, bg_map=self.bg_map, bg_grid=self.bg_grid, dot_type=2)
 
 
 class Dot:
-
     def __init__(self, lon: float, lat: float, bg_map: Map, bg_grid: Grid, dot_type: int):
         self.lon = lon  # 点位经度
         self.lat = lat  # 点位纬度
