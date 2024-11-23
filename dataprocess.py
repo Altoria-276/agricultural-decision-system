@@ -1,3 +1,4 @@
+from typing import List, Optional
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -6,11 +7,12 @@ import geopandas as gpd
 from pykrige.ok import OrdinaryKriging
 from alphashape import alphashape
 from shapely.geometry import Polygon, MultiPolygon, Point
+from math import ceil
 
 
 np.random.seed(42)  # 设置种子值为42
-plt.rcParams["font.sans-serif"] = ["SimHei"]    # 用来正常显示中文标签
-plt.rcParams["axes.unicode_minus"] = False      # 用来正常显示负号
+plt.rcParams["font.sans-serif"] = ["SimHei"]  # 用来正常显示中文标签
+plt.rcParams["axes.unicode_minus"] = False  # 用来正常显示负号
 
 warnings.filterwarnings("ignore")
 # 全局，错误数据的索引
@@ -47,12 +49,12 @@ colors = [
 ]
 
 space = ["东经", "北纬"]
-label = []          # label为重金属
-col = []            # col为环境协变量
-kringing_num = 80   # 插值50x50
-logpre_excel = []   # 克里金插值后生成的excel名称列表，预测,重金属做差，之后保存成一个新的excel名称列表
-grid_size = 0.01    # 设置栅格大小
-rmse_thres = 0.4    # rmse_thres为阈值
+label = []  # label为重金属
+col = []  # col为环境协变量
+kringing_num = 80  # 插值50x50
+logpre_excel = []  # 克里金插值后生成的excel名称列表，预测,重金属做差，之后保存成一个新的excel名称列表
+grid_size = 0.01  # 设置栅格大小
+rmse_thres = 0.4  # rmse_thres为阈值
 # shapefile = './数据/湘潭镇界.shp'
 # data = gpd.read_file(shapefile)
 endframe = pd.DataFrame()
@@ -60,13 +62,13 @@ endframe = pd.DataFrame()
 
 class Map:
     def __init__(self, file_path):
-        self.gdf = gpd.read_file(file_path).to_crs(epsg=4326)   # 提取地图文件为GeoDataFrame格式，将gdf坐标系转换为经纬度坐标系
-        self.geo_info = self.gdf.geometry                       # 提取地图文件中的地理几何对象信息
-        self.outline = self.geo_info.iloc[0]                    # 假设第一个几何对象就是地图边界
+        self.gdf = gpd.read_file(file_path).to_crs(epsg=4326)  # 提取地图文件为GeoDataFrame格式，将gdf坐标系转换为经纬度坐标系
+        self.geo_info = self.gdf.geometry  # 提取地图文件中的地理几何对象信息
+        self.outline = self.geo_info.iloc[0]  # 假设第一个几何对象就是地图边界
         # self.outline = self.gdf.boundary.to_crs(epsg=4326)     # 地图边界第二种写法
-        self.grid = None                                        # 初始默认未进行栅格化
+        self.grid = None  # 初始默认未进行栅格化
 
-    def is_inside(self, lon, lat):
+    def is_inside(self, lon: float, lat: float) -> bool:
         """
         用于判断给定经纬度的点位是否位于此地图边界内
         :param lon: 给定点位的经度
@@ -77,7 +79,7 @@ class Map:
         is_within = point.within(self.outline)
         return is_within
 
-    def grid_paint(self, grid_row, grid_col):
+    def grid_paint(self, grid_row: int, grid_col: int):
         """
 
         :param grid_row: 需要绘制的栅格行数
@@ -87,8 +89,8 @@ class Map:
 
         # 获取边界范围
         minx, miny, maxx, maxy = self.outline.bounds
-        width = maxx - minx     # 经度范围
-        height = maxy - miny    # 纬度范围
+        width = maxx - minx  # 经度范围
+        height = maxy - miny  # 纬度范围
 
         cell_width = width / grid_row
         cell_height = height / grid_col
@@ -96,82 +98,48 @@ class Map:
 
 
 class Grid:
-    def __init__(self, init_x, init_y, size_x, size_y, row_num, col_num, bg):
-        self.init_point = Point(init_x, init_y)         # 定义栅格的初始点，一般为左上方点位
+    def __init__(self, init_x: float, init_y: float, size_x: float, size_y: float, row_num: int, col_num: int, bg: Map):
+        self.init_point = Point(init_x, init_y)  # 定义栅格的初始点，一般为左上方点位
         self.init_x = init_x
         self.init_y = init_y
         self.size_x = size_x
-        self.size_y = size_y        # 小栅格的宽度、高度
+        self.size_y = size_y  # 小栅格的宽度、高度
         self.row_num = row_num
-        self.col_num = col_num      # 栅格的行数、列数
-        self.bg = bg                # 归属的背景地图
-        self.center_matrix = self.get_cell_center()         # 每个小栅格的中心点矩阵
-        self.valid_matrix = self.get_valid_matrix(bg)       # 有效性矩阵（表示每个小栅格是否位于地图内）
-        # 以下属性在散点之前默认初始为空
-        self.dots_list = []
-        self.focus_matrix = [[]]
+        self.col_num = col_num  # 栅格的行数、列数
+        self.bg: Map = bg  # 归属的背景地图
+        self.cell_matrix: List[List[Optional[Cell]]] = [[None] * col_num for _ in range(row_num)]
+        self.init_cell()  #  赋值 cell_matrix & 中心点 & 有效性
 
     def __repr__(self):
-        return (f"Grid(init_point:{self.init_point}, size_x:{self.size_x}, "
-                f"size_y:{self.size_y}, row_num:{self.row_num}, col_num:{self.col_num})")
+        return (
+            f"Grid(init_point:{self.init_point}, size_x:{self.size_x}, "
+            f"size_y:{self.size_y}, row_num:{self.row_num}, col_num:{self.col_num})"
+        )
 
-    def get_cell_index(self, row, col):
-        if (row < self.row_num) and (col < self.col_num):
-            cell_index = (row - 1) * self.col_num + col
-        else:
-            raise IndexError("索引超出栅格范围")
-        return cell_index
-
-    def get_cell_pos(self, x, y):
-        """
-        判断给定坐标点位位于栅格中的哪一小格
-        :param x: 给定点位经度
-        :param y: 给定点位维度
-        :return: 点位位置小格的索引编号, TODO:注意，小栅格的编号从1开始，不能为0或负数
-        """
-        if (self.init_x <= x <= (self.init_x + self.col_num * self.size_x)) and ((self.init_y - self.row_num * self.size_y) <= y <= self.init_y):
-            col = int((x - self.init_x) / self.size_x) + 1
-            row = int((self.init_y - y) / self.size_y) + 1
+    def get_cell_pos(self, x: float, y: float):
+        # 获取栅格的行列
+        if (self.init_x <= x <= (self.init_x + self.col_num * self.size_x)) and (
+            (self.init_y - self.row_num * self.size_y) <= y <= self.init_y
+        ):
+            col = ceil((x - self.init_x) / self.size_x)
+            row = ceil((self.init_y - y) / self.size_y)
         else:
             raise ValueError("点位超出栅格范围")
-        return self.get_cell_index(row, col)
+        return row, col
 
-    def get_cell_center(self):
-        # 初始化一个空的二维矩阵
-        center_matrix = []
-
+    def init_cell(self):
         # 遍历每行和每列，计算每个小栅格的中心点
         for row in range(self.row_num):
-            row_centers = []
             for col in range(self.col_num):
                 # 中心点的坐标
                 center_x = self.init_x + (col + 0.5) * self.size_x
                 center_y = self.init_y - (row + 0.5) * self.size_y
-                row_centers.append((center_x, center_y))  # 存储为元组
-            center_matrix.append(row_centers)
 
-        return center_matrix
-
-    def get_valid_matrix(self, bg):
-        """
-        遍历中心点矩阵，生成判断小栅格有效性的布尔矩阵
-        :param bg: 背景地图，一个Map类的实例化对象
-        :return: 布尔矩阵（二维列表），表示每个小栅格的有效性
-        """
-        valid_matrix = []
-
-        # 遍历中心点矩阵，判断每个点是否在范围内
-        for row in self.center_matrix:
-            valid_row = []
-            for center_x, center_y in row:
-                valid_row.append(bg.is_inside(center_x, center_y))
-            valid_matrix.append(valid_row)
-
-        return valid_matrix
+                self.cell_matrix[row][col] = Cell(lon=center_x, lat=center_y, is_valid=self.bg.is_inside(center_x, center_y))
 
     def dots_mapping(self, dots_df):
         """
-        将散点映射到栅格中，散点之后会默认进行focus矩阵的计算
+        将散点映射到栅格中，散点之后会默认进行 focus 计算
         :param dots_df: 包含点位经纬度的列 'lon' 和 'lat'。
         :return: None
         """
@@ -179,91 +147,57 @@ class Grid:
         if space[0] not in dots_df.columns or space[1] not in dots_df.columns:
             raise ValueError("dots_df 必须包含 '东经' 和 '北纬' 列")
 
-        # 清空 dots_list
-        self.dots_list = []
-
-        i = 0
         # 遍历点位，映射到栅格
         for _, row in dots_df.iterrows():
             lon, lat = row[space[0]], row[space[1]]
             try:
-                cell_index = self.get_cell_pos(lon, lat)
-                dot = Dot(lon=lon, lat=lat, cell_index=cell_index, bg_map=self.bg, bg_grid=self, index=i, dot_type=1)
-                self.dots_list.append(dot)
+                row, col = self.get_cell_pos(lon, lat)
+                dot = Dot(lon=lon, lat=lat, bg_map=self.bg, bg_grid=self, dot_type=1)
+                self.cell_matrix[row][col].dots_list.append(dot)
             except ValueError as e:
-                print(f"点位 ({lon}, {lat}) 超出栅格范围，跳过")
-            i += 1
+                print(e)
 
-        self.focus_matrix = self.get_focus_matrix()
+        self.set_focus()
 
-    def reverse_mapping(self, cell_index):
-        """
-        根据栅格编号反向映射，获取该栅格中的散点列表
-        :param cell_index: 小栅格编号
-        :return: 该栅格中的散点列表，若无散点则返回空列表
-        """
-        if cell_index < 1 or cell_index > self.row_num * self.col_num:
-            raise ValueError("栅格编号超出范围")
+    def set_focus(self):
+        for row in self.cell_matrix:
+            for cell in row:
+                cell.calc_focus()
 
-        # 查找 dots_list 中所属栅格为 cell_index 的点位
-        points_in_cell = [dot for dot in self.dots_list if dot.cell_index == cell_index]
 
-        return points_in_cell
+class Cell:
+    def __init__(self, lon: float, lat: float, is_valid: bool = True):
+        self.lon: float = lon
+        self.lat: float = lat
+        self.dots_list: List[Dot] = []
+        self.focus_dot: Optional[Dot] = None
+        self.is_valid: bool = True
 
-    def calc_focus(self, cell_index):
-        """
-        计算指定栅格的focus点位
-        :param cell_index: 栅格编号
-        :return: Dot 对象，表示栅格的 focus；若栅格内无点，则返回 None
-        """
-        points_in_cell = self.reverse_mapping(cell_index)
-        if not points_in_cell:  # 如果没有点
-            return None
-        else:  # 如果有多个点，计算平均值
-            avg_lon = sum(dot.lon for dot in points_in_cell) / len(points_in_cell)
-            avg_lat = sum(dot.lat for dot in points_in_cell) / len(points_in_cell)
-            return Dot(avg_lon, avg_lat, cell_index, bg_map=self.bg, bg_grid=self, index=cell_index, dot_type=2)
+        def __repr__(self):
+            return f"Cell(lon={self.lone}, lat={self.lat}, is_valid={self.is_valid})"
 
-    def get_focus_matrix(self):
+    def calc_focus(self):
         """
-        生成 focus 矩阵，每个元素为 Dot 对象或 None。
-        :return: 二维列表，表示每个栅格的 focus
+        计算栅格的 focus
         """
-        focus_matrix = []
-        for row in range(1, self.row_num + 1):
-            focus_row = []
-            for col in range(1, self.col_num + 1):
-                cell_index = self.get_cell_index(row, col)
-                focus = self.calc_focus(cell_index)
-                focus_row.append(focus)
-            focus_matrix.append(focus_row)
-        return focus_matrix
-
-    def interpolation(self):
-        """
-        将栅格中的focus虚拟点进行插值
-        """
-        for focus_row in self.focus_matrix:
-            for focus_dot in focus_row:
-                if focus_dot:
-                    self.dots_list.append(focus_dot)
+        if self.dots_list:
+            avg_lon = sum(dot.lon for dot in self.dots_list) / len(self.dots_list)
+            avg_lat = sum(dot.lat for dot in self.dots_list) / len(self.dots_list)
+            self.focus_dot = Dot(lon=avg_lon, lat=avg_lat, bg_map=self.bg, bg_grid=self, dot_type=2)
 
 
 class Dot:
-    def __init__(self, lon, lat, cell_index, bg_map, bg_grid, index, dot_type):
+
+    def __init__(self, lon: float, lat: float, bg_map: Map, bg_grid: Grid, dot_type: int):
         self.lon = lon  # 点位经度
         self.lat = lat  # 点位纬度
-        self.cell_index = cell_index    # 点位归属的栅格编号
-        self.bg_map = bg_map            # 点位归属背景地图
-        self.bg_grid = bg_grid          # 点位归属栅格
+        self.bg_map = bg_map  # 点位归属背景地图
+        self.bg_grid = bg_grid  # 点位归属栅格
         # 以下属性暂未用到
-        self.index = index              # 点位编号
-        self.dot_type = dot_type        # type为1表示普通散点，type为2表示focus
+        self.dot_type = dot_type  # type为1表示普通散点，type为2表示focus
 
     def __repr__(self):
-        return f"Dot(lon={self.lon}, lat={self.lat}, cell_index={self.cell_index}, index={self.index})"
-
-
+        return f"Dot(lon={self.lon}, lat={self.lat})"
 
 
 # """克里金插值"""
