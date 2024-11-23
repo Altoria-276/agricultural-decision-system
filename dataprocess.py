@@ -49,6 +49,30 @@ colors = [
 ]
 
 space = ["东经", "北纬"]
+params_name = [
+    "P",
+    "K",
+    "N",
+    "Cr",
+    "Cu",
+    "Zn",
+    "As",
+    "Cd",
+    "Pb",
+    "Se",
+    "Mo",
+    "Na",
+    "Al",
+    "Si",
+    "Ca",
+    "Fe",
+    "Hg",
+    "La",
+    "Mg",
+    "Mn",
+    "有效态Cd",
+    "水稻Cd",
+]
 label = []  # label为重金属
 col = []  # col为环境协变量
 kringing_num = 80  # 插值50x50
@@ -136,10 +160,14 @@ class Grid:
                 center_y = self.init_y - (row + 0.5) * self.size_y
 
                 self.cell_matrix[row][col] = Cell(
-                    lon=center_x, lat=center_y, bg_map=self.bg, bg_grid=self, is_valid=self.bg.is_inside(center_x, center_y)
+                    lon=center_x,
+                    lat=center_y,
+                    bg_map=self.bg,
+                    bg_grid=self,
+                    is_valid=self.bg.is_inside(center_x, center_y),
                 )
 
-    def dots_mapping(self, dots_df):
+    def load_dots(self, dots_df: pd.DataFrame):
         """
         将散点映射到栅格中，散点之后会默认进行 focus 计算
         :param dots_df: 包含点位经纬度的列 'lon' 和 'lat'。
@@ -150,11 +178,19 @@ class Grid:
             raise ValueError("dots_df 必须包含 '东经' 和 '北纬' 列")
 
         # 遍历点位，映射到栅格
-        for _, row in dots_df.iterrows():
-            lon, lat = row[space[0]], row[space[1]]
+        for _, line in dots_df.iterrows():
+            # line is pd.Series
+            lon, lat = line[space[0]], line[space[1]]
             try:
                 row, col = self.get_cell_pos(lon, lat)
-                dot = Dot(lon=lon, lat=lat, bg_map=self.bg, bg_grid=self, dot_type=1)
+                dot = Dot(
+                    lon=lon,
+                    lat=lat,
+                    bg_map=self.bg,
+                    bg_grid=self,
+                    dot_type=1,
+                    params=line[params_name].to_dict(),
+                )
                 self.cell_matrix[row][col].dots_list.append(dot)
             except ValueError as e:
                 print(e)
@@ -187,20 +223,40 @@ class Cell:
         if self.dots_list:
             avg_lon = sum(dot.lon for dot in self.dots_list) / len(self.dots_list)
             avg_lat = sum(dot.lat for dot in self.dots_list) / len(self.dots_list)
-            self.focus_dot = Dot(lon=avg_lon, lat=avg_lat, bg_map=self.bg_map, bg_grid=self.bg_grid, dot_type=2)
+            average_params = self.get_average_params()
+
+            self.focus_dot = Dot(lon=avg_lon, lat=avg_lat, bg_map=self.bg_map, bg_grid=self.bg_grid, dot_type=2, params=average_params)
+
+    def get_average_params(self):
+        params_list = [dot.params for dot in self.dots_list if dot.params]
+
+        all_keys = set(params_list[0].keys())
+
+        average_dict = {key: 0 for key in all_keys}
+
+        for params in params_list:
+            for key, value in params.items():
+                average_dict[key] += value
+
+        num = len(params_list)
+        for key in average_dict:
+            average_dict[key] /= num
+
+        return average_dict
 
 
 class Dot:
-    def __init__(self, lon: float, lat: float, bg_map: Map, bg_grid: Grid, dot_type: int):
+    def __init__(self, lon: float, lat: float, bg_map: Map, bg_grid: Grid, dot_type: int, params: Optional[dict] = None):
         self.lon = lon  # 点位经度
         self.lat = lat  # 点位纬度
         self.bg_map = bg_map  # 点位归属背景地图
         self.bg_grid = bg_grid  # 点位归属栅格
         # 以下属性暂未用到
         self.dot_type = dot_type  # type为1表示普通散点，type为2表示focus
+        self.params = params  # 节点参数字典
 
     def __repr__(self):
-        return f"Dot(lon={self.lon}, lat={self.lat})"
+        return f"Dot(lon={self.lon}, lat={self.lat}, params={self.params})"
 
 
 # """克里金插值"""
