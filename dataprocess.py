@@ -247,6 +247,7 @@ class Dot:
         self.cell_index = cell_index    # 点位归属的栅格编号
         self.bg_map = bg_map            # 点位归属背景地图
         self.bg_grid = bg_grid          # 点位归属栅格
+        # 以下属性暂未用到
         self.index = index              # 点位编号
         self.dot_type = dot_type        # type为1表示普通散点，type为2表示focus
 
