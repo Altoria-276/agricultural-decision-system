@@ -239,6 +239,15 @@ class Grid:
             focus_matrix.append(focus_row)
         return focus_matrix
 
+    def interpolation(self):
+        """
+        将栅格中的focus虚拟点进行插值
+        """
+        for focus_row in self.focus_matrix:
+            for focus_dot in focus_row:
+                if focus_dot:
+                    self.dots_list.append(focus_dot)
+
 
 class Dot:
     def __init__(self, lon, lat, cell_index, bg_map, bg_grid, index, dot_type):
