@@ -204,6 +204,7 @@ class Grid:
             lon, lat = line[space[0]], line[space[1]]
             try:
                 row, col = self.get_cell_pos(lon, lat)
+
                 dot = Dot(
                     lon=lon,
                     lat=lat,
@@ -216,6 +217,7 @@ class Grid:
             except ValueError as e:
                 print(e)
 
+    def set_focus(self):
         # set focus
         for row in self.cell_matrix:
             for cell in row:
@@ -227,7 +229,9 @@ class Grid:
         for row in range(self.row_num):
             for col in range(self.col_num):
                 self.value_matrix[row][col] = (
-                    self.cell_matrix[row][col].focus_dot.params[label] if self.cell_matrix[row][col].focus_dot else np.nan
+                    self.cell_matrix[row][col].focus_dot.params[label]
+                    if self.cell_matrix[row][col].focus_dot and self.cell_matrix[row][col].is_valid
+                    else np.nan
                 )
 
     def conv_interpolation(self):
@@ -258,7 +262,7 @@ class Cell:
         self.lat: float = lat
         self.dots_list: List[Dot] = []
         self.focus_dot: Optional[Dot] = None
-        self.is_valid: bool = True
+        self.is_valid: bool = is_valid
         self.bg_map: Map = bg_map
         self.bg_grid: Grid = bg_grid
 
@@ -311,6 +315,44 @@ class Dot:
     def __repr__(self):
         return f"Dot(lon={self.lon}, lat={self.lat}, params={self.params})"
 
+
+def run():
+    file_path_shp = os.path.join(".", "数据", "湘潭县界.shp")
+
+    kringing(pd.read_excel(os.path.join(".", "数据", "水稻点位148.xlsx")), 100)
+
+    file_path_df = os.path.join(".", "数据", "水稻点位148.xlsx")
+    file_path_kringing = os.path.join(".", "kringing", "data.xlsx")
+
+    map = Map(file_path_shp)
+    map.grid_paint(grid_row=30, grid_col=30)
+    grid = map.grid
+    grid.load_dots(pd.read_excel(file_path_kringing))
+    grid.load_dots(pd.read_excel(file_path_df))
+    grid.set_focus()
+
+    fig, ax = plt.subplots()
+    map.gdf.plot(ax=ax, facecolor="none", edgecolor="black")
+    grid.set_value_matrix("Cd")
+
+    bounds = map.outline.bounds
+    bounds = [bounds[0], bounds[2], bounds[1], bounds[3]]
+
+    img = ax.imshow(map.grid.value_matrix, extent=bounds, origin="lower", alpha=0.5)
+
+    map.gdf.boundary.plot(ax=ax, color="black", linewidth=1)
+    ax.set_xlim(bounds[:2])
+    ax.set_ylim(bounds[2:])
+    ax.set_xlabel("Longitude")
+    ax.set_ylabel("Latitude")
+
+    fig.colorbar(img, ax=ax)
+
+    fig.savefig("./Images/img.png")
+
+
+if __name__ == "__main__":
+    run()
 
 # """克里金插值"""
 
