@@ -1,5 +1,6 @@
 from typing import List, Optional
 import matplotlib.pyplot as plt
+from numpy._typing._array_like import NDArray
 import pandas as pd
 import numpy as np
 import warnings
@@ -8,6 +9,7 @@ from pykrige.ok import OrdinaryKriging
 from alphashape import alphashape
 from shapely.geometry import Polygon, MultiPolygon, Point
 from math import ceil, floor
+from geopandas.geodataframe import GeoDataFrame
 
 
 np.random.seed(42)  # 设置种子值为42
@@ -86,7 +88,9 @@ endframe = pd.DataFrame()
 
 class Map:
     def __init__(self, file_path):
-        self.gdf = gpd.read_file(file_path).to_crs(epsg=4326)  # 提取地图文件为GeoDataFrame格式，将gdf坐标系转换为经纬度坐标系
+        self.gdf: GeoDataFrame = gpd.read_file(file_path).to_crs(
+            epsg=4326
+        )  # 提取地图文件为 GeoDataFrame 格式，将gdf坐标系转换为经纬度坐标系
         self.geo_info = self.gdf.geometry  # 提取地图文件中的地理几何对象信息
         self.outline = self.geo_info.iloc[0]  # 假设第一个几何对象就是地图边界
         # self.outline = self.gdf.boundary.to_crs(epsg=4326)     # 地图边界第二种写法
@@ -132,7 +136,9 @@ class Grid:
         self.col_num = col_num  # 栅格的行数、列数
         self.bg: Map = bg  # 归属的背景地图
         self.cell_matrix: List[List[Optional[Cell]]] = [[None] * col_num for _ in range(row_num)]
-        self.init_cell()  #  赋值 cell_matrix & 中心点 & 有效性
+        self.mask_matrix: np.ndarray[bool] = np.zeros((row_num, col_num), dtype=bool)
+        self.value_matrix: np.ndarray[float] = np.zeros((row_num, col_num), dtype=float)
+        self.__init_cell()  #  赋值 cell_matrix & 中心点 & 有效性
 
     def __repr__(self):
         return (
@@ -151,7 +157,7 @@ class Grid:
             raise ValueError("点位超出栅格范围")
         return row, col
 
-    def init_cell(self):
+    def __init_cell(self):
         # 遍历每行和每列，计算每个小栅格的中心点
         for row in range(self.row_num):
             for col in range(self.col_num):
@@ -159,13 +165,17 @@ class Grid:
                 center_x = self.init_x + (col + 0.5) * self.size_x
                 center_y = self.init_y - (row + 0.5) * self.size_y
 
+                is_valid = self.bg.is_inside(center_x, center_y)
+
                 self.cell_matrix[row][col] = Cell(
                     lon=center_x,
                     lat=center_y,
                     bg_map=self.bg,
                     bg_grid=self,
-                    is_valid=self.bg.is_inside(center_x, center_y),
+                    is_valid=is_valid,
                 )
+
+                self.mask_matrix[row][col] = is_valid
 
     def load_dots(self, dots_df: pd.DataFrame):
         """
@@ -195,12 +205,17 @@ class Grid:
             except ValueError as e:
                 print(e)
 
-        self.set_focus()
-
-    def set_focus(self):
+        # set focus
         for row in self.cell_matrix:
             for cell in row:
                 cell.calc_focus()
+
+    def set_value_matrix(self, label: str):
+        if label not in params_name:
+            raise ValueError("需要选择合法的标签")
+        for row in range(self.row_num):
+            for col in range(self.col_num):
+                self.value_matrix[row][col] = self.cell_matrix[row][col].focus_dot.params[label]
 
 
 class Cell:
@@ -223,11 +238,11 @@ class Cell:
         if self.dots_list:
             avg_lon = sum(dot.lon for dot in self.dots_list) / len(self.dots_list)
             avg_lat = sum(dot.lat for dot in self.dots_list) / len(self.dots_list)
-            average_params = self.get_average_params()
+            average_params = self.__get_average_params()
 
             self.focus_dot = Dot(lon=avg_lon, lat=avg_lat, bg_map=self.bg_map, bg_grid=self.bg_grid, dot_type=2, params=average_params)
 
-    def get_average_params(self):
+    def __get_average_params(self):
         params_list = [dot.params for dot in self.dots_list if dot.params]
 
         all_keys = set(params_list[0].keys())
