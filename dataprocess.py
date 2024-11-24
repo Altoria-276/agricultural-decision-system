@@ -1,3 +1,4 @@
+import os
 from typing import List, Optional
 import matplotlib.pyplot as plt
 from numpy._typing._array_like import NDArray
@@ -15,40 +16,6 @@ from geopandas.geodataframe import GeoDataFrame
 np.random.seed(42)  # 设置种子值为42
 plt.rcParams["font.sans-serif"] = ["SimHei"]  # 用来正常显示中文标签
 plt.rcParams["axes.unicode_minus"] = False  # 用来正常显示负号
-
-warnings.filterwarnings("ignore")
-# 全局，错误数据的索引
-globals_dict = {}
-globals_right = {}
-# 显示所有列
-pd.set_option("display.max_columns", None)
-# 显示所有行
-pd.set_option("display.max_rows", None)
-
-# 忽略特定类型的警告
-warnings.filterwarnings("ignore", category=FutureWarning)  # 忽略FutureWarning
-warnings.filterwarnings("ignore", category=UserWarning)  # 忽略UserWarning
-
-# 颜色列表
-colors = [
-    "red",
-    "cyan",
-    "pink",
-    "orange",
-    "limegreen",
-    "salmon",
-    "grey",
-    "gold",
-    "darkgreen",
-    "royalblue",
-    "darkmagenta",
-    "darkgoldenrod",
-    "maroon",
-    "saddlebrown",
-    "lawngreen",
-    "olive",
-    "navy",
-]
 
 space = ["东经", "北纬"]
 params_name = [
@@ -75,15 +42,43 @@ params_name = [
     "有效态Cd",
     "水稻Cd",
 ]
-label = []  # label为重金属
-col = []  # col为环境协变量
-kringing_num = 80  # 插值50x50
-logpre_excel = []  # 克里金插值后生成的excel名称列表，预测,重金属做差，之后保存成一个新的excel名称列表
-grid_size = 0.01  # 设置栅格大小
-rmse_thres = 0.4  # rmse_thres为阈值
-# shapefile = './数据/湘潭镇界.shp'
-# data = gpd.read_file(shapefile)
-endframe = pd.DataFrame()
+
+
+def kringing(df: pd.DataFrame, num):
+    outpath = os.path.join(".", "kringing", "data")
+    lon, lat = df[space[0]], df[space[1]]
+
+    min_lon, max_lon = lon.min(), lon.max()
+    min_lat, max_lat = lat.min(), lat.max()
+
+    lon, lat = df[space[0]], df[space[1]]
+
+    # 创建一个空GeoDataFrame用于存储插值结果
+    geometry = [
+        Point(xy) for xy in zip(np.tile(np.linspace(min_lon, max_lon, num), num), np.repeat(np.linspace(min_lat, max_lat, num), num))
+    ]
+    crs = {"init": "epsg:4326"}  # EPSG:4326坐标系
+    interpolated_gdf = gpd.GeoDataFrame(pd.DataFrame(), crs=crs, geometry=geometry)
+
+    # 循环遍历每个属性进行插值
+    for param in params_name:
+        data = df[param]
+        OK = OrdinaryKriging(lon, lat, data, variogram_model="spherical", nlags=3)
+        z, ss = OK.execute("grid", np.linspace(min_lon, max_lon, num), np.linspace(min_lat, max_lat, num))
+        interpolated_gdf[param] = z.flatten()
+
+    # 保存插值结果为shapefile文件和数据表
+    interpolated_gdf.to_file(f"{outpath}.shp")
+
+    # 提取经度和纬度信息
+    interpolated_gdf[space[0]] = interpolated_gdf.geometry.apply(lambda geom: geom.x)
+    interpolated_gdf[space[1]] = interpolated_gdf.geometry.apply(lambda geom: geom.y)
+
+    # 将经度和纬度列放在前两列
+    interpolated_gdf = interpolated_gdf[space + params_name]
+    interpolated_gdf.to_excel(f"{outpath}.xlsx", index=False)
+    print("插值数据保存成功！")
+    return f"{outpath}.xlsx"
 
 
 class Map:
@@ -124,6 +119,25 @@ class Map:
         cell_height = height / grid_col
         self.grid = Grid(minx, miny, cell_width, cell_height, grid_row, grid_col, self)
 
+    def save_image(self, label: str = "K"):
+        fig, ax = plt.subplots()
+        self.gdf.plot(ax=ax, facecolor="none", edgecolor="black")
+        self.grid.set_value_matrix(label)
+
+        bounds = map.outline.bounds
+        bounds = [bounds[0], bounds[2], bounds[1], bounds[3]]
+
+        img = ax.imshow(map.grid.value_matrix, extent=bounds, origin="lower", alpha=0.5)
+
+        map.gdf.boundary.plot(ax=ax, color="black", linewidth=1)
+        ax.set_xlim(bounds[:2])
+        ax.set_ylim(bounds[2:])
+        ax.set_xlabel("Longitude")
+        ax.set_ylabel("Latitude")
+
+        fig.colorbar(img, ax=ax)
+        fig.savefig("./Images/img.png")
+
 
 class Grid:
     def __init__(self, init_x: float, init_y: float, size_x: float, size_y: float, row_num: int, col_num: int, bg: Map):
@@ -136,7 +150,6 @@ class Grid:
         self.col_num = col_num  # 栅格的行数、列数
         self.bg: Map = bg  # 归属的背景地图
         self.cell_matrix: List[List[Optional[Cell]]] = [[None] * col_num for _ in range(row_num)]
-        self.mask_matrix: np.ndarray[bool] = np.zeros((row_num, col_num), dtype=bool)
         self.value_matrix: np.ndarray[float] = np.zeros((row_num, col_num), dtype=float)
         self.__init_cell()  #  赋值 cell_matrix & 中心点 & 有效性
 
@@ -175,8 +188,6 @@ class Grid:
                     is_valid=is_valid,
                 )
 
-                self.mask_matrix[row][col] = is_valid
-
     def load_dots(self, dots_df: pd.DataFrame):
         """
         将散点映射到栅格中，散点之后会默认进行 focus 计算
@@ -208,7 +219,7 @@ class Grid:
         # set focus
         for row in self.cell_matrix:
             for cell in row:
-                cell.calc_focus()
+                cell.focus_dot = cell.calc_focus()
 
     def set_value_matrix(self, label: str):
         if label not in params_name:
@@ -218,6 +229,27 @@ class Grid:
                 self.value_matrix[row][col] = (
                     self.cell_matrix[row][col].focus_dot.params[label] if self.cell_matrix[row][col].focus_dot else np.nan
                 )
+
+    def conv_interpolation(self):
+        update = True
+        neighbors_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+        while update:
+            update = False
+            for i in range(1, self.row_num - 1):
+                for j in range(1, self.col_num - 1):
+                    if not self.cell_matrix[i][j].focus_dot:
+                        neighbors = [(i + di, j + dj) for di, dj in neighbors_offsets]
+                        neighbors_dots: List[Optional[Dot]] = []
+
+                        for row, col in neighbors:
+                            if self.cell_matrix[row][col].focus_dot:
+                                neighbors_dots.append(self.cell_matrix[row][col].focus_dot)
+
+                        if neighbors_dots:
+                            dot = self.cell_matrix[i][j].calc_focus_interpolation(neighbors_dots)
+                            if self.get_cell_pos(dot.lon, dot.lat) == (row, col):
+                                self.cell_matrix[i][j].focus_dot = dot
+                                update = True
 
 
 class Cell:
@@ -233,16 +265,20 @@ class Cell:
     def __repr__(self):
         return f"Cell(lon={self.lon}, lat={self.lat}, is_valid={self.is_valid})"
 
+    def calc_focus_interpolation(self, dots_list):
+        self.dots_list = dots_list
+        dot = self.calc_focus()
+        dot.dot_type = 3
+        self.dots_list = []
+        return dot
+
     def calc_focus(self):
-        """
-        计算栅格的 focus
-        """
         if self.dots_list:
             avg_lon = sum(dot.lon for dot in self.dots_list) / len(self.dots_list)
             avg_lat = sum(dot.lat for dot in self.dots_list) / len(self.dots_list)
             average_params = self.__get_average_params()
 
-            self.focus_dot = Dot(lon=avg_lon, lat=avg_lat, bg_map=self.bg_map, bg_grid=self.bg_grid, dot_type=2, params=average_params)
+            return Dot(lon=avg_lon, lat=avg_lat, bg_map=self.bg_map, bg_grid=self.bg_grid, dot_type=2, params=average_params)
 
     def __get_average_params(self):
         params_list = [dot.params for dot in self.dots_list if dot.params]
