@@ -122,7 +122,7 @@ class Map:
 
         cell_width = width / grid_row
         cell_height = height / grid_col
-        self.grid = Grid(minx, maxy, cell_width, cell_height, grid_row, grid_col, self)
+        self.grid = Grid(minx, miny, cell_width, cell_height, grid_row, grid_col, self)
 
 
 class Grid:
@@ -149,10 +149,10 @@ class Grid:
     def get_cell_pos(self, x: float, y: float):
         # 获取栅格的行列
         if (self.init_x <= x <= (self.init_x + self.col_num * self.size_x)) and (
-            (self.init_y - self.row_num * self.size_y) <= y <= self.init_y
+            self.init_y <= y <= (self.init_y + self.row_num * self.size_y)
         ):
             col = floor((x - self.init_x) / self.size_x)
-            row = floor((self.init_y - y) / self.size_y)
+            row = floor((y - self.init_y) / self.size_y)
         else:
             raise ValueError("点位超出栅格范围")
         return row, col
@@ -163,7 +163,7 @@ class Grid:
             for col in range(self.col_num):
                 # 中心点的坐标
                 center_x = self.init_x + (col + 0.5) * self.size_x
-                center_y = self.init_y - (row + 0.5) * self.size_y
+                center_y = self.init_y + (row + 0.5) * self.size_y
 
                 is_valid = self.bg.is_inside(center_x, center_y)
 
@@ -215,7 +215,9 @@ class Grid:
             raise ValueError("需要选择合法的标签")
         for row in range(self.row_num):
             for col in range(self.col_num):
-                self.value_matrix[row][col] = self.cell_matrix[row][col].focus_dot.params[label]
+                self.value_matrix[row][col] = (
+                    self.cell_matrix[row][col].focus_dot.params[label] if self.cell_matrix[row][col].focus_dot else np.nan
+                )
 
 
 class Cell:
