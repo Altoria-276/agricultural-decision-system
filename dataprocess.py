@@ -42,9 +42,29 @@ params_name = [
     "有效态Cd",
     "水稻Cd",
 ]
+params_name_2 = [
+    "基准",
+    "2008年",
+    "2009年",
+    "2010年",
+    "2011年",
+    "2012年",
+    "2013年",
+    "2014年",
+    "2015年",
+    "2016年",
+    "2017年",
+    "2018年",
+    "2019年",
+    "2020年",
+    "2021年",
+    "2022年",
+    "2023年",
+    "2024年",
+]
 
 
-def kringing(df: pd.DataFrame, num):
+def kringing(df: pd.DataFrame, params_name: List[str], num):
     outpath = os.path.join(".", "kringing", "data")
     lon, lat = df[space[0]], df[space[1]]
 
@@ -90,6 +110,7 @@ class Map:
         self.outline = self.geo_info.iloc[0]  # 假设第一个几何对象就是地图边界
         # self.outline = self.gdf.boundary.to_crs(epsg=4326)     # 地图边界第二种写法
         self.dots_list: List[Dot] = []
+        self.params_name: List[str] = []
         self.grid = None  # 初始默认未进行栅格化
 
     def is_inside(self, lon: float, lat: float) -> bool:
@@ -120,7 +141,8 @@ class Map:
         cell_height = height / grid_col
         self.grid = Grid(minx, miny, cell_width, cell_height, grid_row, grid_col, self)
 
-    def load_dots_file(self, dots_df: pd.DataFrame):
+    def load_dots_df(self, dots_df: pd.DataFrame, params_name: List[str] = params_name):
+        self.params_name = params_name
         # 检查输入是否包含必要列
         if space[0] not in dots_df.columns or space[1] not in dots_df.columns:
             raise ValueError("dots_df 必须包含 '东经' 和 '北纬' 列")
@@ -135,7 +157,7 @@ class Map:
                     bg_map=self,
                     bg_grid=self.grid,
                     dot_type=1,
-                    params=line[params_name].to_dict(),
+                    params=line[self.params_name].to_dict(),
                 )
 
                 self.dots_list.append(dot)
@@ -229,7 +251,7 @@ class Grid:
                 cell.focus_dot = cell.calc_focus()
 
     def set_value_matrix(self, label: str):
-        if label not in params_name:
+        if label not in self.bg.params_name:
             raise ValueError("需要选择合法的标签")
         for row in range(self.row_num):
             for col in range(self.col_num):
@@ -330,8 +352,8 @@ def run():
     file_path_kringing = os.path.join(".", "kringing", "data.xlsx")
 
     map = Map(file_path_shp)
-    map.load_dots_file(pd.read_excel(file_path_kringing))
-    map.load_dots_file(pd.read_excel(file_path_df))
+    map.load_dots_df(pd.read_excel(file_path_kringing))
+    map.load_dots_df(pd.read_excel(file_path_df))
     map.grid_paint(grid_row=30, grid_col=30)
     grid = map.grid
     grid.set_focus()
