@@ -89,6 +89,7 @@ class Map:
         self.geo_info = self.gdf.geometry  # 提取地图文件中的地理几何对象信息
         self.outline = self.geo_info.iloc[0]  # 假设第一个几何对象就是地图边界
         # self.outline = self.gdf.boundary.to_crs(epsg=4326)     # 地图边界第二种写法
+        self.dots_list: List[Dot] = []
         self.grid = None  # 初始默认未进行栅格化
 
     def is_inside(self, lon: float, lat: float) -> bool:
@@ -119,7 +120,31 @@ class Map:
         cell_height = height / grid_col
         self.grid = Grid(minx, miny, cell_width, cell_height, grid_row, grid_col, self)
 
-    def save_image(self, label: str = "K"):
+    def load_dots_file(self, dots_df: pd.DataFrame):
+        # 检查输入是否包含必要列
+        if space[0] not in dots_df.columns or space[1] not in dots_df.columns:
+            raise ValueError("dots_df 必须包含 '东经' 和 '北纬' 列")
+
+        for _, line in dots_df.iterrows():
+            # line is pd.Series
+            lon, lat = line[space[0]], line[space[1]]
+            try:
+                dot = Dot(
+                    lon=lon,
+                    lat=lat,
+                    bg_map=self,
+                    bg_grid=self.grid,
+                    dot_type=1,
+                    params=line[params_name].to_dict(),
+                )
+
+                self.dots_list.append(dot)
+                if self.grid:
+                    self.grid.load_dots(dot)
+            except ValueError as e:
+                print(e)
+
+    def save_grid_image(self, label: str = "K"):
         fig, ax = plt.subplots()
         self.gdf.plot(ax=ax, facecolor="none", edgecolor="black")
         self.grid.set_value_matrix(label)
@@ -152,6 +177,7 @@ class Grid:
         self.cell_matrix: List[List[Optional[Cell]]] = [[None] * col_num for _ in range(row_num)]
         self.value_matrix: np.ndarray[float] = np.zeros((row_num, col_num), dtype=float)
         self.__init_cell()  #  赋值 cell_matrix & 中心点 & 有效性
+        self.__syn_dots_list()
 
     def __repr__(self):
         return (
@@ -188,34 +214,13 @@ class Grid:
                     is_valid=is_valid,
                 )
 
-    def load_dots(self, dots_df: pd.DataFrame):
-        """
-        将散点映射到栅格中，散点之后会默认进行 focus 计算
-        :param dots_df: 包含点位经纬度的列 'lon' 和 'lat'。
-        :return: None
-        """
-        # 检查输入是否包含必要列
-        if space[0] not in dots_df.columns or space[1] not in dots_df.columns:
-            raise ValueError("dots_df 必须包含 '东经' 和 '北纬' 列")
+    def __syn_dots_list(self):
+        for dot in self.bg.dots_list:
+            self.load_dots(dot)
 
-        # 遍历点位，映射到栅格
-        for _, line in dots_df.iterrows():
-            # line is pd.Series
-            lon, lat = line[space[0]], line[space[1]]
-            try:
-                row, col = self.get_cell_pos(lon, lat)
-
-                dot = Dot(
-                    lon=lon,
-                    lat=lat,
-                    bg_map=self.bg,
-                    bg_grid=self,
-                    dot_type=1,
-                    params=line[params_name].to_dict(),
-                )
-                self.cell_matrix[row][col].dots_list.append(dot)
-            except ValueError as e:
-                print(e)
+    def load_dots(self, dot):
+        row, col = self.get_cell_pos(dot.lon, dot.lat)
+        self.cell_matrix[row][col].dots_list.append(dot)
 
     def set_focus(self):
         # set focus
@@ -325,10 +330,10 @@ def run():
     file_path_kringing = os.path.join(".", "kringing", "data.xlsx")
 
     map = Map(file_path_shp)
+    map.load_dots_file(pd.read_excel(file_path_kringing))
+    map.load_dots_file(pd.read_excel(file_path_df))
     map.grid_paint(grid_row=30, grid_col=30)
     grid = map.grid
-    grid.load_dots(pd.read_excel(file_path_kringing))
-    grid.load_dots(pd.read_excel(file_path_df))
     grid.set_focus()
 
     fig, ax = plt.subplots()
