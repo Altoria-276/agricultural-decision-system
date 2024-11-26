@@ -1,3 +1,5 @@
+import os
+from typing import List
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage.color import rgb2gray
@@ -9,27 +11,61 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import seaborn as sns
 
+plt.rcParams["font.sans-serif"] = ["SimHei"]  # 用来正常显示中文标签
+plt.rcParams["axes.unicode_minus"] = False  # 用来正常显示负号
 
-def process_image(image_path, save_path, low_threshold=0.2, high_threshold=0.9, beta=10, min_size=100, save_dpi=350):
+params_name = [
+    "P",
+    "K",
+    "N",
+    "Cr",
+    "Cu",
+    "Zn",
+    "As",
+    "Cd",
+    "Pb",
+    "Se",
+    "Mo",
+    "Na",
+    "Al",
+    "Si",
+    "Ca",
+    "Fe",
+    "Hg",
+    "La",
+    "Mg",
+    "Mn",
+    "有效态Cd",
+    "水稻Cd",
+]
+
+
+def img_random_walk_process(
+    image_path: str,
+    low_threshold: float = 0.2,
+    high_threshold: float = 0.9,
+    beta: int = 10,
+    min_size: int = 100,
+    dpi: int = 400,
+):
     """
     对图像进行随机游走分割、去除小区域以及骨架提取，并保存结果图像
     :param image_path: str, 输入图像的路径。
-    :param save_path: str, 保存处理结果图像的路径。
     :param low_threshold: float, 分割时的低阈值。
     :param high_threshold: float, 分割时的高阈值。
     :param beta: int, 随机游走算法的边缘敏感度参数。
     :param min_size: int, 去除小区域的最小面积。
-    :param save_dpi: int, 保存图像的DPI。
+    :param dpi: int, 图像的DPI。
     :return: str, 保存图像的路径。
     """
     # 加载图像
-    img = img_as_float(io.imread(image_path))
+    img: np.ndarray = img_as_float(io.imread(image_path))
 
     # 随机游走分割
-    markers = np.zeros_like(img)
+    markers: np.ndarray = np.zeros_like(img)
     markers[img > high_threshold] = 1
     markers[img < low_threshold] = 2
-    seg_result = random_walker(img, markers, beta=beta, mode='bf')
+    seg_result = random_walker(img, markers, beta=beta, mode="bf")
 
     # 区域处理，去除最小区域
     label_img = label(seg_result)
@@ -44,27 +80,22 @@ def process_image(image_path, save_path, low_threshold=0.2, high_threshold=0.9, 
     skeleton = morphology.skeletonize(prop_bw)
 
     # 显示并保存结果
-    fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, figsize=(15, 15), dpi=250)
-    fig.suptitle(f"Processing: {image_path}")
+    fig, ax = plt.subplots(dpi=dpi)
 
-    ax1.imshow(img)
-    ax1.axis('off')
-    ax1.set_title('Original', fontsize=12)
+    k = 0.9
+    ax.imshow(img * k + np.double(skeleton) * (1 - k))
+    ax.axis("off")
+    ax.set_title("Processed (Skeleton Overlay)", fontsize=12)
 
-    ax2.imshow(img * 0.8 + np.double(skeleton) * 0.2)
-    ax2.axis('off')
-    ax2.set_title('Processed (Skeleton Overlay)', fontsize=12)
+    file_path = os.path.join(".", "Images", "img_random_walk.png")
 
-    fig.savefig(save_path, dpi=save_dpi)
+    fig.savefig(file_path, dpi=dpi)
     plt.close(fig)
 
-    return save_path
+    return file_path
 
 
-def perform_pca_on_excel(file_path, sheet_name, params_name, n_components=8):
-    # 读取Excel数据
-    data = pd.read_excel(file_path, sheet_name=sheet_name)
-
+def img_pca_loading(data: pd.DataFrame, params_name: List[str] = params_name, n_components: int = 8):
     # 选择需要进行PCA分析的列
     data_selected = data[params_name]
 
@@ -81,13 +112,13 @@ def perform_pca_on_excel(file_path, sheet_name, params_name, n_components=8):
     # print(f"累计方差贡献率: {np.cumsum(pca.explained_variance_ratio_)}")
 
     # 可视化降维后的数据 (前两个主成分)
-    if n_components >= 2:
-        plt.figure(figsize=(8, 6))
-        plt.scatter(pca_result[:, 0], pca_result[:, 1], alpha=0.5)
-        plt.title("PCA - 2D Projection")
-        plt.xlabel("主成分1")
-        plt.ylabel("主成分2")
-        plt.show()
+    # if n_components >= 2:
+    #     plt.figure(figsize=(8, 6))
+    #     plt.scatter(pca_result[:, 0], pca_result[:, 1], alpha=0.5)
+    #     plt.title("PCA - 2D Projection")
+    #     plt.xlabel("主成分1")
+    #     plt.ylabel("主成分2")
+    #     plt.show()
 
     # 可视化负载矩阵
     loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
@@ -97,23 +128,46 @@ def perform_pca_on_excel(file_path, sheet_name, params_name, n_components=8):
     plt.figure(figsize=(10, 8))
     sns.heatmap(loadings_df, annot=True, cmap="coolwarm", center=0)
     plt.title("PCA负载矩阵")
-    plt.show()
+    file_path = os.path.join(".", "Images", "Img_pca_loading.png")
+    plt.savefig(file_path)
 
-    return pca_result, loadings_df
+    return file_path
 
 
-if __name__ == '__main__':
-    image_path = "Images/Img_Cd.jpg"                                # 文件可更换
-    save_path = "Images/processed_images/Img_Cd_processed.jpg"      # 路径可更换
-    result = process_image(image_path, save_path)
+if __name__ == "__main__":
+    image_path = "Images/img2.png"  # 文件可更换
+    file_path = "Images/processed_images/img2.png"  # 路径可更换
+    result = img_random_walk_process(image_path, file_path)
 
     # 示例调用
-    file_path = '数据/水稻点位148.xlsx'  # Excel文件路径
-    sheet_name = '原始数据'  # Excel表单名称
+    file_path = "数据/水稻点位148.xlsx"  # Excel文件路径
+    sheet_name = "原始数据"  # Excel表单名称
     params_name = [
-        "P", "K", "N", "Cr", "Cu", "Zn", "As", "Cd", "Pb", "Se",
-        "Mo", "Na", "Al", "Si", "Ca", "Fe", "Hg", "La", "Mg", "Mn", "有效态Cd"
+        "P",
+        "K",
+        "N",
+        "Cr",
+        "Cu",
+        "Zn",
+        "As",
+        "Cd",
+        "Pb",
+        "Se",
+        "Mo",
+        "Na",
+        "Al",
+        "Si",
+        "Ca",
+        "Fe",
+        "Hg",
+        "La",
+        "Mg",
+        "Mn",
+        "有效态Cd",
     ]
 
+    # 读取Excel数据
+    data = pd.read_excel(file_path, sheet_name=sheet_name)
+
     # 执行 PCA 并降到8个主成分
-    pca_result, loadings_df = perform_pca_on_excel(file_path, sheet_name, params_name, n_components=8)
+    pca_result, loadings_df = img_pca_loading(data, params_name, n_components=8)

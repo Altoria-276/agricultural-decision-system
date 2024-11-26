@@ -107,7 +107,7 @@ class SoilCdModel:
         plt.grid(alpha=0.5)
         plt.legend(fontsize=12)
         plt.tight_layout()
-        plt.show()
+        plt.savefig("./Images/img4.png")
 
 
 # ============================
@@ -115,7 +115,7 @@ class SoilCdModel:
 # ============================
 
 # 加载数据
-file_path = "水稻点位148.xlsx"
+file_path = "./数据/水稻点位148.xlsx"
 data = pd.ExcelFile(file_path)
 raw_data = data.parse("原始数据")
 

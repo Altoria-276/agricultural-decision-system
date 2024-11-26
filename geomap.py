@@ -1,3 +1,4 @@
+import os
 from typing import List, Optional
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -58,17 +59,21 @@ params_name_2 = [
 ]
 
 
-class Map:
-    def __init__(self, file_path):
+class GeoMap:
+    def __init__(self, file_path, data: Optional[pd.DataFrame] = None):
         self.gdf: GeoDataFrame = gpd.read_file(file_path).to_crs(
             epsg=4326
         )  # 提取地图文件为 GeoDataFrame 格式，将gdf坐标系转换为经纬度坐标系
         self.geo_info = self.gdf.geometry  # 提取地图文件中的地理几何对象信息
         self.outline = self.geo_info.iloc[0]  # 假设第一个几何对象就是地图边界
         # self.outline = self.gdf.boundary.to_crs(epsg=4326)     # 地图边界第二种写法
+        self.lon = (self.outline.bounds[0] + self.outline.bounds[2]) / 2
+        self.lat = (self.outline.bounds[1] + self.outline.bounds[3]) / 2
         self.dots_list: List[Dot] = []
         self.params_name: List[str] = []
         self.grid = None  # 初始默认未进行栅格化
+        if data:
+            self.load_dots_df(data)
 
     def is_inside(self, lon: float, lat: float) -> bool:
         """
@@ -128,13 +133,12 @@ class Map:
     def save_grid_image(self, label: str = "K"):
         fig, ax = plt.subplots()
         self.gdf.boundary.plot(ax=ax, color="black", linewidth=1)
-        # self.gdf.plot(ax=ax, facecolor="none", edgecolor="black")
         self.grid.set_value_matrix(label)
 
         bounds = self.outline.bounds
         bounds = [bounds[0], bounds[2], bounds[1], bounds[3]]
 
-        img = ax.imshow(map.grid.value_matrix, extent=bounds, origin="lower", alpha=0.5)
+        img = ax.imshow(self.grid.value_matrix, extent=bounds, origin="lower", alpha=0.5)
 
         ax.set_xlim(bounds[:2])
         ax.set_ylim(bounds[2:])
@@ -142,7 +146,23 @@ class Map:
         ax.set_ylabel("Latitude")
 
         fig.colorbar(img, ax=ax)
-        fig.savefig("./Images/img2.png")
+
+        file_path = os.path.join(".", "Images", f"img_grid_{label}.png")
+
+        fig.savefig(file_path)
+
+        return file_path
+
+    def save_grid_image_pure(self, label: str = "K"):
+        fig, ax = plt.subplots()
+        self.grid.set_value_matrix(label)
+        ax.imshow(self.grid.value_matrix, origin="lower", alpha=0.5)
+        ax.axis("off")
+
+        file_path = os.path.join(".", "Images", f"img_grid_{label}_pure.png")
+        fig.savefig(file_path)
+
+        return file_path
 
     def save_dot_image(self, label: str = "2012年"):
         fig, ax = plt.subplots()
@@ -159,11 +179,15 @@ class Map:
         ax.set_xlabel("Longitude")
         ax.set_ylabel("Latitude")
 
-        fig.savefig("./Images/img3.png")
+        file_path = os.path.join(".", "Images", f"img_dot_{label}.png")
+
+        fig.savefig(file_path)
+
+        return file_path
 
 
 class Grid:
-    def __init__(self, init_x: float, init_y: float, size_x: float, size_y: float, row_num: int, col_num: int, bg: Map):
+    def __init__(self, init_x: float, init_y: float, size_x: float, size_y: float, row_num: int, col_num: int, bg: GeoMap):
         self.init_point = Point(init_x, init_y)  # 定义栅格的初始点，一般为左上方点位
         self.init_x = init_x
         self.init_y = init_y
@@ -171,7 +195,7 @@ class Grid:
         self.size_y = size_y  # 小栅格的宽度、高度
         self.row_num = row_num
         self.col_num = col_num  # 栅格的行数、列数
-        self.bg: Map = bg  # 归属的背景地图
+        self.bg: GeoMap = bg  # 归属的背景地图
         self.cell_matrix: List[List[Optional[Cell]]] = [[None] * col_num for _ in range(row_num)]
         self.value_matrix: np.ndarray[float] = np.zeros((row_num, col_num), dtype=float)
         self.__init_cell()  #  赋值 cell_matrix & 中心点 & 有效性
@@ -261,13 +285,13 @@ class Grid:
 
 
 class Cell:
-    def __init__(self, lon: float, lat: float, bg_map: Map, bg_grid: Grid, is_valid: bool = True):
+    def __init__(self, lon: float, lat: float, bg_map: GeoMap, bg_grid: Grid, is_valid: bool = True):
         self.lon: float = lon
         self.lat: float = lat
         self.dots_list: List[Dot] = []
         self.focus_dot: Optional[Dot] = None
         self.is_valid: bool = is_valid
-        self.bg_map: Map = bg_map
+        self.bg_map: GeoMap = bg_map
         self.bg_grid: Grid = bg_grid
 
     def __repr__(self):
@@ -307,7 +331,7 @@ class Cell:
 
 
 class Dot:
-    def __init__(self, lon: float, lat: float, bg_map: Map, bg_grid: Grid, dot_type: int, params: Optional[dict] = None):
+    def __init__(self, lon: float, lat: float, bg_map: GeoMap, bg_grid: Grid, dot_type: int, params: Optional[dict] = None):
         self.lon = lon  # 点位经度
         self.lat = lat  # 点位纬度
         self.bg_map = bg_map  # 点位归属背景地图
