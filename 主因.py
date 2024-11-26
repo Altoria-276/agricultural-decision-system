@@ -4,12 +4,9 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.linear_model import Ridge
-import matplotlib
 
-
-# 设置字体为 macOS 系统自带的中文字体
-matplotlib.rcParams["font.sans-serif"] = ["PingFang HK"]
-matplotlib.rcParams["axes.unicode_minus"] = False
+plt.rcParams["font.sans-serif"] = ["SimHei"]  # 用来正常显示中文标签
+plt.rcParams["axes.unicode_minus"] = False  # 用来正常显示负号
 
 
 class SoilCdModel:

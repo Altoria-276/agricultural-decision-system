@@ -1,7 +1,7 @@
 import gradio as gr
 import pandas as pd
 
-from regression import RegressionProcess
+from regression import RegressionModel
 
 
 def ui():
@@ -12,7 +12,7 @@ def ui():
             with gr.Row(equal_height=True):
                 p1_file_path_input = gr.File(label="文件路径", scale=3)
                 p1_sheet_name_input = gr.Dropdown(choices=["无"], value="无", label="选择数据页", interactive=True)
-                p1_model_input = gr.Dropdown(choices=["Ridge", "Linear", "C"], label="选择拟合模型", scale=3)
+                p1_model_input = gr.Dropdown(choices=["Ridge", "Linear", "C"], value="", label="选择拟合模型", scale=3)
 
             with gr.Row(equal_height=True):
                 p1_feature_input = gr.Dropdown(choices=[], label="自变量特征选择", multiselect=True, interactive=True, scale=3)
@@ -66,38 +66,46 @@ def ui():
                     with gr.Row(equal_height=True):
                         gr.Image(label="未来超标风险区空间分布图")
 
-        regression_model = RegressionProcess()
+        params: dict = {}
 
         p1_file_path_input.change(
-            fn=lambda file_path: gr.update(choices=pd.ExcelFile(file_path).sheet_names),
+            fn=lambda file_path: gr.update(choices=list(pd.read_excel(file_path, sheet_name=None).keys())),
             inputs=p1_file_path_input,
             outputs=p1_sheet_name_input,
         )
 
         def sheet_change(file_path: str, sheet_name: str):
-            data = pd.ExcelFile(file_path).parse(sheet_name)
+            data = pd.read_excel(file_path, sheet_name)
+            params["data"] = data
             update = gr.update(choices=data.columns.to_list())
-            regression_model.load_model(p1_model_input.value)
-            regression_model.data = data
             return update, update
 
         p1_sheet_name_input.change(
             fn=sheet_change, inputs=[p1_file_path_input, p1_sheet_name_input], outputs=[p1_target_input, p1_feature_input]
         )
 
-        def target_change(target: str):
-            if regression_model:
-                regression_model.target = target
+        def model_change(model):
+            params["model"] = model
+
+        p1_model_input.change(fn=model_change, inputs=p1_model_input)
+
+        def target_change(target):
+            params["target"] = target
 
         p1_target_input.change(fn=target_change, inputs=p1_target_input)
 
         def feature_change(feature):
-            if regression_model:
-                regression_model.feature = feature
+            params["feature"] = feature
 
         p1_feature_input.change(fn=feature_change, inputs=p1_feature_input)
 
-        p1_run_button.click(fn=regression_model.run, outputs=p1_img2_output)
+        def run_click():
+            model = RegressionModel(params["model"], params["data"], params["feature"], params["target"])
+            model.train_and_evaluate_model()
+            img_path = model.plot_coefficients()
+            return img_path
+
+        p1_run_button.click(fn=run_click, outputs=p1_img2_output)
 
     ui.launch(share=False)
 
