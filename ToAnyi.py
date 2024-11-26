@@ -34,7 +34,7 @@ from skimage import io
 
 # img = io.imread('D:\MyProject\pythonProject\BayesianInference\Img_As.jpg')
 # 下面这个地方更改处理的文件名
-strr = 'Img_As.jpg'
+strr = 'Images\Img_Cd.jpg'
 strr1 = strr + '1.jpg'
 img = img_as_float(io.imread(strr))
 
@@ -88,7 +88,7 @@ sk = morphology.skeletonize(prop_bw)
 # 显示结果
 # 下面这个地方是显示凸显的属性
 # fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, figsize=(6, 6), dpi=200)
-fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1,  dpi=250)
+fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, figsize=(15, 15), dpi=250)
 fig.suptitle(strr)
 
 ax1.imshow(img)
@@ -100,7 +100,7 @@ ax2.axis('off')
 ax2.set_title('move', fontsize=12)
 
 # 下面这个地方是保存文件的位置和属性
-fig.savefig(strr1, dpi=350, figsize=(15, 15))
+fig.savefig(strr1, dpi=350)
 # 查看直方
 # plt.hist(img.flat, bins=100)
 
