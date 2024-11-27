@@ -1,5 +1,7 @@
 import os
+from typing import List
 import gradio as gr
+import numpy as np
 import pandas as pd
 
 from dataprocess import get_average_speed, kringing
@@ -55,30 +57,43 @@ def ui():
             with gr.Row(equal_height=True):
                 p3_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), value="", label="数据文件")
                 p3_map_name_input = gr.Dropdown(choices=list(shp_files.keys()), value="", label="地图文件")
-            with gr.Row(equal_height=True):
-                with gr.Column():
-                    gr.Markdown("累积趋势分析")
-                    with gr.Row(equal_height=True):
-                        p3_time_select = gr.Dropdown([], label="指定年份")
-                        p3_run_button = gr.Button("运行")
-                    with gr.Row(equal_height=True):
-                        p3_dot_img = gr.Image(label="监测点位累积幅度空间分布图")
-                        with gr.Column():
-                            p3_pie_img = gr.Image(label="监测点位累积幅度占比统计")
-                            p3_line_img = gr.Image(label="监测数据年际变化")
 
+            gr.Markdown("累积趋势分析")
+            with gr.Row(equal_height=True):
+                p3_time_select = gr.Dropdown([], label="指定年份")
+                p3_run_button = gr.Button("运行")
+            with gr.Row(equal_height=True):
+                p3_dot_img = gr.Image(label="监测点位累积幅度空间分布图")
                 with gr.Column():
-                    gr.Markdown("超标风险区分析")
-                    with gr.Row(equal_height=True):
-                        gr.Dropdown(["2020"], label="预测年份")
-                        gr.Button("计算")
-                    with gr.Row(equal_height=True):
-                        p3_speed_output = gr.Textbox(label="年均累计速率(mg/(kg·y)):")
-                    with gr.Row(equal_height=True):
-                        gr.Image(label="未来超标风险区空间分布图")
+                    p3_pie_img = gr.Image(label="监测点位累积幅度占比统计")
+                    p3_line_img = gr.Image(label="监测数据年际变化")
+
+            gr.Markdown("超标风险区分析")
+            with gr.Row(equal_height=True):
+                gr.Dropdown(["2020"], label="预测年份")
+                gr.Button("计算")
+            with gr.Row(equal_height=True):
+                p3_speed_output = gr.Textbox(label="年均累计速率(mg/(kg·y)):")
+            with gr.Row(equal_height=True):
+                gr.Image(label="未来超标风险区空间分布图")
 
         with gr.Tab("主因和阈值计算"):
-            p4_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), value="", label="数据文件", scale=3, allow_custom_value=True)
+            with gr.Row(equal_height=True):
+                p4_file_name_input = gr.Dropdown(
+                    choices=list(xlsx_files.keys()), value="", label="数据文件", allow_custom_value=True, scale=2
+                )
+                p4_model_input = gr.Dropdown(choices=["Ridge", "Linear"], label="选择拟合模型", scale=2)
+                p4_run_button = gr.Button(value="运行")
+            gr.Markdown("归一化模型")
+            p4_fitting_img = gr.Image(label="训练集和测试集拟合效果")
+            with gr.Row():
+                p4_shap_img = gr.Image(label="主因识别")
+                p4_analysis_img = gr.Image(label="关键辅因分析")
+            gr.Markdown("安全阈值计算")
+            with gr.Row():
+                p4_prediction_img = gr.Image(label="预测曲线")
+                p4_shiki_img = gr.Image(label="shiki")
+            p4_threshold_output = gr.Textbox(label="安全阈值计算")
 
         # page1
 
@@ -100,30 +115,20 @@ def ui():
             fn=p1_sheet_change, inputs=[p1_file_name_input, p1_sheet_name_input], outputs=[p1_target_input, p1_feature_input]
         )
 
-        def p1_target_change(target):
-            p1_params["target"] = target
-
-        p1_target_input.change(fn=p1_target_change, inputs=p1_target_input)
-
-        def p1_feature_change(feature):
-            p1_params["feature"] = feature
-
-        p1_feature_input.change(fn=p1_feature_change, inputs=p1_feature_input)
-
-        def p1_run_click(model: str):
-            model = RegressionModel(model, p1_params["data"], p1_params["feature"], p1_params["target"])
+        def p1_run_click(model: str, feature: List[str], target: str):
+            model = RegressionModel(model, p1_params["data"], feature, target)
             model.train_and_evaluate_model()
             img_path = model.plot_coefficients()
             return img_path
 
-        p1_run_button.click(fn=p1_run_click, inputs=p1_model_input, outputs=p1_img2_output)
+        p1_run_button.click(fn=p1_run_click, inputs=[p1_model_input, p1_feature_input, p1_target_input], outputs=p1_img2_output)
 
         # page2
         def p2_run_click(file_name: str, map_name: str):
             data = pd.read_excel(xlsx_files[file_name], sheet_name="原始数据")
             gmap = GeoMap(shp_files[map_name])
             gmap.load_dots_df(data)
-            kringing(data, num=100)
+            kringing(data, num=50)
             gmap.load_dots_df(pd.read_excel(os.path.join(".", "kringing", "data.xlsx")))
             gmap.grid_paint(20, 20)
             pca_path = img_pca_loading(data)
@@ -195,6 +200,36 @@ def ui():
                 p3_line_img,
                 p3_speed_output,
             ],
+        )
+
+        # page4
+
+        def p4_run_click(file_name: str, model_name: str):
+            data = pd.read_excel(xlsx_files[file_name])
+            feature = ["Cd", "Pb", "Al", "Ca", "Mn"]
+            target = "水稻Cd"
+            model = RegressionModel(model_name, data, feature, target)
+            model.train_and_evaluate_model()
+            img_fitting_path = model.plot_fitting_effect()
+            img_shap_path = model.plot_shap_importance()
+
+            base_feature_values = {"Pb": 43.4, "Al": 10.8, "Ca": 747.2, "Mn": 240.2}
+
+            # 计算土壤 Cd 的安全阈值
+            threshold_cd = model.calculate_threshold(fixed_values=base_feature_values, variable_feature="Cd", target_value=0.2)
+            variable_range = np.linspace(0, 2, 100)
+            img_prediction_path = model.plot_prediction_curve(
+                fixed_values=base_feature_values,
+                variable_feature="Cd",
+                variable_range=variable_range,
+            )
+
+            return img_fitting_path, img_shap_path, img_prediction_path, threshold_cd
+
+        p4_run_button.click(
+            fn=p4_run_click,
+            inputs=[p4_file_name_input, p4_model_input],
+            outputs=[p4_fitting_img, p4_shap_img, p4_prediction_img, p4_threshold_output],
         )
 
     ui.launch(share=False)

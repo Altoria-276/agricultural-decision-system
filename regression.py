@@ -1,4 +1,7 @@
 from typing import List
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import shap
@@ -140,14 +143,16 @@ class RegressionModel:
         """
         绘制模型系数的绝对值饼图。
         """
+
+        fig, ax = plt.subplots()
+
         coefficients = abs(self.results["coefficients"]["Coefficient"])
-        plt.figure(figsize=(10, 8))
-        plt.pie(coefficients, labels=self.feature, autopct="%1.1f%%", startangle=90)
-        plt.title("基于系数的特征重要性")
-        plt.axis("equal")
+        ax.pie(coefficients, labels=self.feature, autopct="%1.1f%%", startangle=90)
+        ax.set_title("基于系数的特征重要性")
+        ax.axis("equal")
 
         img_path = os.path.join(".", "Images", "coefficients.png")
-        plt.savefig(img_path)
+        fig.savefig(img_path)
         plt.close()
         return img_path
 
@@ -160,31 +165,28 @@ class RegressionModel:
         y_test = self.results["y_test"]
         y_test_pred = self.results["y_test_pred"]
 
-        plt.figure(figsize=(14, 6))
-
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 8))
         # 绘制训练数据
-        plt.subplot(1, 2, 1)
-        plt.scatter(y_train, y_train_pred, edgecolors="k", facecolors="none", label="训练数据")
-        plt.plot([y_train.min(), y_train.max()], [y_train.min(), y_train.max()], "r--", lw=2)
-        plt.xlabel("实际值")
-        plt.ylabel("预测值")
-        plt.title("训练数据")
-        plt.legend()
+        ax1.scatter(y_train, y_train_pred, edgecolors="k", facecolors="none", label="训练数据")
+        ax1.plot([y_train.min(), y_train.max()], [y_train.min(), y_train.max()], "r--", lw=2)
+        ax1.set_xlabel("实际值")
+        ax1.set_ylabel("预测值")
+        ax1.set_title("训练数据")
+        ax1.legend()
 
         # 绘制测试数据
-        plt.subplot(1, 2, 2)
-        plt.scatter(y_test, y_test_pred, edgecolors="k", facecolors="none", label="测试数据")
+        ax2.scatter(y_test, y_test_pred, edgecolors="k", facecolors="none", label="测试数据")
         reg = LinearRegression().fit(y_test.values.reshape(-1, 1), y_test_pred)
-        plt.plot(y_test, reg.predict(y_test.values.reshape(-1, 1)), "b-", lw=2)
-        plt.xlabel("实际值")
-        plt.ylabel("预测值")
-        plt.title("测试数据")
-        plt.legend()
+        ax2.plot(y_test, reg.predict(y_test.values.reshape(-1, 1)), "b-", lw=2)
+        ax2.set_xlabel("实际值")
+        ax2.set_ylabel("预测值")
+        ax2.set_title("测试数据")
+        ax2.legend()
 
-        plt.tight_layout()
+        fig.tight_layout()
 
         img_path = os.path.join(".", "Images", "fitting_effect.png")
-        plt.savefig(img_path)
+        fig.savefig(img_path)
         plt.close()
         return img_path
 
@@ -194,13 +196,16 @@ class RegressionModel:
         """
         explainer = shap.Explainer(self.model, self.X)
         shap_values = explainer(self.X)
+
+        fig, ax = plt.subplots(figsize=(10, 8))
+
         shap.summary_plot(shap_values, self.X, plot_type="bar", show=False)
-        plt.title("基于 SHAP 的特征重要性分析")
-        plt.xlabel("特征重要性")
-        plt.ylabel("特征")
+        ax.set_title("基于 SHAP 的特征重要性分析")
+        ax.set_xlabel("特征重要性")
+        ax.set_ylabel("特征")
 
         img_path = os.path.join(".", "Images", "shap_importance.png")
-        plt.savefig(img_path)
+        fig.savefig(img_path)
         plt.close()
         return img_path
 
