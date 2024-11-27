@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.linear_model import Ridge
+import os
 
 plt.rcParams["font.sans-serif"] = ["SimHei"]  # 用来正常显示中文标签
 plt.rcParams["axes.unicode_minus"] = False  # 用来正常显示负号
@@ -48,7 +49,7 @@ class SoilCdModel:
         self.trained_model = self.model
         return self.model, mse, r2
 
-    def calculate_threshold(self, fixed_values, variable_feature, target_value, precision=0.001):
+    def calculate_threshold(self, fixed_values, variable_feature, target_value="水稻Cd", precision=0.001):
         """
         计算给定水稻 Cd 值时对应的土壤 Cd 值
         参数:
@@ -59,8 +60,8 @@ class SoilCdModel:
         返回:
         - 对应的土壤 Cd 值
         """
-        if not self.trained_model:
-            raise RuntimeError("模型尚未训练，请先调用 train_model 方法。")
+        if not self.is_trained:
+            raise RuntimeError("模型尚未训练")
         lower_bound, upper_bound = 0, 2  # 假设土壤 Cd 的范围
         while upper_bound - lower_bound > precision:
             mid_point = (lower_bound + upper_bound) / 2
@@ -96,18 +97,24 @@ class SoilCdModel:
         # 预测值
         y_pred_curve = self.trained_model.predict(curve_data)
 
-        # 绘制曲线
-        plt.figure(figsize=(8, 6))
-        plt.plot(variable_range, y_pred_curve, label=f"预测曲线 ({variable_feature})", color="blue", lw=2)
-        plt.axhline(0, color="gray", linestyle="--", alpha=0.7)  # 零基线
-        plt.xlabel(f"{variable_feature} 值", fontsize=14)
-        plt.ylabel("水稻 Cd 预测值", fontsize=14)
-        plt.title(f"水稻 Cd 预测值随 {variable_feature} 的变化", fontsize=16)
+        # 绘制曲线7
 
-        plt.grid(alpha=0.5)
-        plt.legend(fontsize=12)
-        plt.tight_layout()
-        plt.savefig("./Images/img4.png")
+        fig, ax = plt.subplots()
+
+        ax.plot(variable_range, y_pred_curve, label=f"预测曲线 ({variable_feature})", color="blue", lw=2)
+        ax.axhline(0, color="gray", linestyle="--", alpha=0.7)  # 零基线
+        ax.set_xlabel(f"{variable_feature} 值", fontsize=14)
+        ax.set_ylabel("水稻 Cd 预测值", fontsize=14)
+        ax.set_title(f"水稻 Cd 预测值随 {variable_feature} 的变化", fontsize=16)
+
+        ax.grid(alpha=0.5)
+        ax.legend(fontsize=12)
+
+        file_path = os.path.join(".", "Images", "img_prediction_curve.png")
+        fig.savefig(file_path)
+        plt.close()
+
+        return file_path
 
 
 # ============================

@@ -151,6 +151,7 @@ class GeoMap:
         file_path = os.path.join(".", "Images", f"img_grid_{label}.png")
 
         fig.savefig(file_path)
+        plt.close()
 
         return file_path
 
@@ -162,6 +163,7 @@ class GeoMap:
 
         file_path = os.path.join(".", "Images", f"img_grid_{label}_pure.png")
         fig.savefig(file_path)
+        plt.close()
 
         return file_path
 
@@ -183,6 +185,7 @@ class GeoMap:
         file_path = os.path.join(".", "Images", f"img_dot_{label}.png")
 
         fig.savefig(file_path)
+        plt.close()
 
         return file_path
 

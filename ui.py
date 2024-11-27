@@ -23,9 +23,7 @@ def ui():
                     choices=list(xlsx_files.keys()), value="", label="数据文件", scale=3, allow_custom_value=True
                 )
                 p1_sheet_name_input = gr.Dropdown(choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True)
-                p1_model_input = gr.Dropdown(
-                    choices=["Ridge", "Linear", "C"], value="", label="选择拟合模型", scale=3, allow_custom_value=True
-                )
+                p1_model_input = gr.Dropdown(choices=["Ridge", "Linear", "C"], label="选择拟合模型", scale=3)
 
             with gr.Row(equal_height=True):
                 p1_feature_input = gr.Dropdown(choices=[], label="自变量特征选择", multiselect=True, interactive=True, scale=3)
@@ -40,8 +38,8 @@ def ui():
         with gr.Tab("路径解析"):
             gr.Markdown("# 潜在历史污染源及污染路径解析")
             with gr.Row(equal_height=True):
-                p2_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), label="数据文件", scale=2)
-                p2_map_name_input = gr.Dropdown(choices=list(shp_files.keys()), label="地图文件", scale=2)
+                p2_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), label="数据文件", value="", scale=2)
+                p2_map_name_input = gr.Dropdown(choices=list(shp_files.keys()), label="地图文件", value="", scale=2)
                 with gr.Column(scale=1):
                     p2_lon = gr.Textbox(label="东经")
                     p2_lat = gr.Textbox(label="北纬")
@@ -55,13 +53,13 @@ def ui():
         with gr.Tab("风险区分析"):
             gr.Markdown("# 土壤重金属未来超标风险区分析")
             with gr.Row(equal_height=True):
-                p3_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), label="数据文件")
-                p3_map_name_input = gr.Dropdown(choices=list(shp_files.keys()), label="地图文件")
+                p3_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), value="", label="数据文件")
+                p3_map_name_input = gr.Dropdown(choices=list(shp_files.keys()), value="", label="地图文件")
             with gr.Row(equal_height=True):
                 with gr.Column():
                     gr.Markdown("累积趋势分析")
                     with gr.Row(equal_height=True):
-                        p3_time_select = gr.Dropdown(["2008年"], label="指定年份")
+                        p3_time_select = gr.Dropdown([], label="指定年份")
                         p3_run_button = gr.Button("运行")
                     with gr.Row(equal_height=True):
                         p3_dot_img = gr.Image(label="监测点位累积幅度空间分布图")
@@ -78,6 +76,9 @@ def ui():
                         p3_speed_output = gr.Textbox(label="年均累计速率(mg/(kg·y)):")
                     with gr.Row(equal_height=True):
                         gr.Image(label="未来超标风险区空间分布图")
+
+        with gr.Tab("主因和阈值计算"):
+            p4_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), value="", label="数据文件", scale=3, allow_custom_value=True)
 
         # page1
 
@@ -99,11 +100,6 @@ def ui():
             fn=p1_sheet_change, inputs=[p1_file_name_input, p1_sheet_name_input], outputs=[p1_target_input, p1_feature_input]
         )
 
-        def p1_model_change(model):
-            p1_params["model"] = model
-
-        p1_model_input.change(fn=p1_model_change, inputs=p1_model_input)
-
         def p1_target_change(target):
             p1_params["target"] = target
 
@@ -114,13 +110,13 @@ def ui():
 
         p1_feature_input.change(fn=p1_feature_change, inputs=p1_feature_input)
 
-        def p1_run_click():
-            model = RegressionModel(p1_params["model"], p1_params["data"], p1_params["feature"], p1_params["target"])
+        def p1_run_click(model: str):
+            model = RegressionModel(model, p1_params["data"], p1_params["feature"], p1_params["target"])
             model.train_and_evaluate_model()
             img_path = model.plot_coefficients()
             return img_path
 
-        p1_run_button.click(fn=p1_run_click, outputs=p1_img2_output)
+        p1_run_button.click(fn=p1_run_click, inputs=p1_model_input, outputs=p1_img2_output)
 
         # page2
         def p2_run_click(file_name: str, map_name: str):

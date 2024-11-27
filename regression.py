@@ -23,6 +23,7 @@ class RegressionModel:
         self.test_size = test_size
         self.random_state = random_state
         self.model = self.__load_model(model)
+        self.is_trained = False
 
     def __load_model(self, model: str):
         if model == "Ridge":
@@ -63,7 +64,77 @@ class RegressionModel:
             "y_train_pred": y_train_pred,
             "y_test_pred": y_test_pred,
         }
+
+        self.is_trained = True
+
         return self.results
+
+    def calculate_threshold(self, fixed_values, variable_feature, target_value, precision=0.001):
+        """
+        计算给定水稻 Cd 值时对应的土壤 Cd 值
+        参数:
+        - fixed_values: 固定特征值（字典形式）
+        - variable_feature: 浮动的特征名称
+        - target_value: 目标值（水稻 Cd）
+        - precision: 计算精度（默认 0.001）
+        返回:
+        - 对应的土壤 Cd 值
+        """
+        if not self.is_trained:
+            raise RuntimeError("模型尚未训练")
+        lower_bound, upper_bound = 0, 2  # 假设土壤 Cd 的范围
+        while upper_bound - lower_bound > precision:
+            mid_point = (lower_bound + upper_bound) / 2
+            test_values = fixed_values.copy()
+            test_values[variable_feature] = mid_point
+            test_data = pd.DataFrame([test_values])[self.feature]
+            predicted_value = self.model.predict(test_data)[0]
+            if predicted_value < target_value:
+                lower_bound = mid_point
+            else:
+                upper_bound = mid_point
+        return (lower_bound + upper_bound) / 2
+
+    def plot_prediction_curve(self, fixed_values, variable_feature, variable_range, threshold_value=None, threshold_label=None):
+        """
+        绘制预测曲线
+        参数:
+        - fixed_values: 固定特征值（字典形式）
+        - variable_feature: 浮动的特征名称
+        - variable_range: 浮动特征的变化范围
+        - threshold_value: 阈值（可选，用于标注安全值）
+        - threshold_label: 阈值标注的文本说明（可选）
+        """
+        if not self.is_trained:
+            raise RuntimeError("模型尚未训练")
+
+        # 构造预测数据
+        curve_data = pd.DataFrame(fixed_values, index=range(len(variable_range)))
+        curve_data[variable_feature] = variable_range
+
+        curve_data = curve_data[self.feature]  # 确保特征顺序一致
+
+        # 预测值
+        y_pred_curve = self.model.predict(curve_data)
+
+        # 绘制曲线
+
+        fig, ax = plt.subplots()
+
+        ax.plot(variable_range, y_pred_curve, label=f"预测曲线 ({variable_feature})", color="blue", lw=2)
+        ax.axhline(0, color="gray", linestyle="--", alpha=0.7)  # 零基线
+        ax.set_xlabel(f"{variable_feature} 值", fontsize=14)
+        ax.set_ylabel("水稻 Cd 预测值", fontsize=14)
+        ax.set_title(f"水稻 Cd 预测值随 {variable_feature} 的变化", fontsize=16)
+
+        ax.grid(alpha=0.5)
+        ax.legend(fontsize=12)
+
+        file_path = os.path.join(".", "Images", "img_prediction_curve.png")
+        fig.savefig(file_path)
+        plt.close()
+
+        return file_path
 
     def plot_coefficients(self):
         """
@@ -177,3 +248,18 @@ if __name__ == "__main__":
     model.plot_coefficients()
     model.plot_fitting_effect()
     model.plot_shap_importance()
+
+    base_feature_values = {"Pb": 43.4, "Al": 10.8, "Ca": 747.2, "Mn": 240.2}
+
+    # 计算土壤 Cd 的安全阈值
+    threshold_cd = model.calculate_threshold(fixed_values=base_feature_values, variable_feature="Cd", target_value=0.2)
+    print(f"当水稻 Cd 为 0.2 时，对应的土壤 Cd 安全阈值为: {threshold_cd:.4f}")
+
+    variable_range = np.linspace(0, 2, 100)
+    model.plot_prediction_curve(
+        fixed_values=base_feature_values,
+        variable_feature="Cd",
+        variable_range=variable_range,
+        threshold_value=threshold_cd,
+        threshold_label=f"安全阈值 (Cd = {threshold_cd:.4f})",
+    )

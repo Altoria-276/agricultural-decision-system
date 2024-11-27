@@ -124,11 +124,13 @@ def img_pca_loading(data: pd.DataFrame, params_name: List[str] = params_name, n_
     loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
     loadings_df = pd.DataFrame(loadings, index=params_name, columns=[f"主成分{i+1}" for i in range(n_components)])
 
+    fig, ax = plt.subplots()
+
     # 绘制热力图
-    sns.heatmap(loadings_df, annot=True, cmap="coolwarm", center=0)
-    plt.title("PCA负载矩阵")
+    sns.heatmap(loadings_df, annot=True, cmap="coolwarm", center=0, ax=ax)
+    ax.set_title("PCA负载矩阵")
     file_path = os.path.join(".", "Images", "Img_pca_loading.png")
-    plt.savefig(file_path)
+    fig.savefig(file_path)
     plt.close()
 
     return file_path
@@ -146,30 +148,31 @@ def img_pie_percent(data: pd.DataFrame, label: str = "2012年"):
     # 计算每个区间的占比
     value_counts = categorized_data.value_counts(normalize=True) * 100
 
+    fig, ax = plt.subplots()
+
     # 绘制饼状图
-    plt.pie(value_counts, labels=value_counts.index, autopct="%1.1f%%", startangle=140)
-    plt.title("Percentage Distribution of Data")
+    ax.pie(value_counts, labels=value_counts.index, autopct="%1.1f%%", startangle=140)
+    ax.set_title("Percentage Distribution of Data")
     file_path = os.path.join(".", "Images", "img_pie_percent.png")
-    plt.savefig(file_path)
+    fig.savefig(file_path)
     plt.close()
 
     return file_path
 
 
 def img_line_percent(data: pd.DataFrame):
+    fig, ax = plt.subplots()
     se = data.mean()[3:].pct_change()[1:] * 100
     # 绘制折线图
-    se.plot(kind="line", marker="o", linestyle="-", color="blue")
+    se.plot(kind="line", marker="o", linestyle="-", color="blue", ax=ax)
 
     # 添加标题和标签
-    plt.title("年度百分比变化")
-    plt.xlabel("年份")
-    plt.ylabel("百分比变化(%)")
-    # 显示网格
-    plt.grid(True)
+    ax.set_title("年度百分比变化")
+    ax.set_xlabel("年份")
+    ax.set_ylabel("百分比变化(%)")
 
     file_path = os.path.join(".", "Images", "img_line_percent.png")
-    plt.savefig(file_path)
+    fig.savefig(file_path)
     plt.close()
 
     return file_path
