@@ -98,6 +98,12 @@ def kringing(df: pd.DataFrame, params_name: List[str] = params_name, num=100):
     return f"{outpath}.xlsx"
 
 
+def get_average_speed(data: pd.DataFrame):
+    se = data.mean()[3:]
+    res = (se["2024年"] - se["2008年"]) / (2024 - 2008)
+    return res
+
+
 def run():
     file_path_shp = os.path.join(".", "数据", "湘潭县界.shp")
 

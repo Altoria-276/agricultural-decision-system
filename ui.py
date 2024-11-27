@@ -2,9 +2,9 @@ import os
 import gradio as gr
 import pandas as pd
 
-from dataprocess import kringing
+from dataprocess import get_average_speed, kringing
 from geomap import GeoMap
-from imageprocess import img_pca_loading, img_random_walk_process
+from imageprocess import img_pca_loading, img_random_walk_process, img_pie_percent, img_line_percent
 from regression import RegressionModel
 from utils import get_shp_files, get_xlsx_files
 
@@ -61,19 +61,21 @@ def ui():
                 with gr.Column():
                     gr.Markdown("累积趋势分析")
                     with gr.Row(equal_height=True):
-                        p3_time_select = gr.Dropdown(["2008"], label="指定年份")
+                        p3_time_select = gr.Dropdown(["2008年"], label="指定年份")
                         p3_run_button = gr.Button("运行")
                     with gr.Row(equal_height=True):
-                        gr.Image(label="监测点位累积幅度空间分布图")
+                        p3_dot_img = gr.Image(label="监测点位累积幅度空间分布图")
                         with gr.Column():
-                            gr.Image(label="监测点位累积幅度占比统计")
-                            gr.Image(label="监测数据年际变化")
+                            p3_pie_img = gr.Image(label="监测点位累积幅度占比统计")
+                            p3_line_img = gr.Image(label="监测数据年际变化")
 
                 with gr.Column():
                     gr.Markdown("超标风险区分析")
                     with gr.Row(equal_height=True):
                         gr.Dropdown(["2020"], label="预测年份")
                         gr.Button("计算")
+                    with gr.Row(equal_height=True):
+                        p3_speed_output = gr.Textbox(label="年均累计速率(mg/(kg·y)):")
                     with gr.Row(equal_height=True):
                         gr.Image(label="未来超标风险区空间分布图")
 
@@ -144,6 +146,60 @@ def ui():
         )
 
         # page3
+
+        def p3_file_change(file_name: str):
+            data = pd.read_excel(xlsx_files[file_name])
+            return gr.update(choices=[item for item in data.columns if item.endswith("年")])
+
+        p3_file_name_input.change(fn=p3_file_change, inputs=p3_file_name_input, outputs=p3_time_select)
+
+        def p3_run_click(file_name: str, map_name: str, label: str):
+            data = pd.read_excel(xlsx_files[file_name])
+            gmap = GeoMap(shp_files[map_name])
+            gmap.load_dots_df(
+                data,
+                params_name=[
+                    "基准",
+                    "2008年",
+                    "2009年",
+                    "2010年",
+                    "2011年",
+                    "2012年",
+                    "2013年",
+                    "2014年",
+                    "2015年",
+                    "2016年",
+                    "2017年",
+                    "2018年",
+                    "2019年",
+                    "2020年",
+                    "2021年",
+                    "2022年",
+                    "2023年",
+                    "2024年",
+                ],
+            )
+            img_dot_path = gmap.save_dot_image(label)
+            img_pie_path = img_pie_percent(data, label)
+            img_line_path = img_line_percent(data)
+            average_speed = get_average_speed(data)
+
+            return img_dot_path, img_pie_path, img_line_path, average_speed
+
+        p3_run_button.click(
+            fn=p3_run_click,
+            inputs=[
+                p3_file_name_input,
+                p3_map_name_input,
+                p3_time_select,
+            ],
+            outputs=[
+                p3_dot_img,
+                p3_pie_img,
+                p3_line_img,
+                p3_speed_output,
+            ],
+        )
 
     ui.launch(share=False)
 

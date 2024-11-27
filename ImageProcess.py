@@ -125,11 +125,11 @@ def img_pca_loading(data: pd.DataFrame, params_name: List[str] = params_name, n_
     loadings_df = pd.DataFrame(loadings, index=params_name, columns=[f"主成分{i+1}" for i in range(n_components)])
 
     # 绘制热力图
-    plt.figure(figsize=(10, 8))
     sns.heatmap(loadings_df, annot=True, cmap="coolwarm", center=0)
     plt.title("PCA负载矩阵")
     file_path = os.path.join(".", "Images", "Img_pca_loading.png")
     plt.savefig(file_path)
+    plt.close()
 
     return file_path
 
@@ -151,6 +151,7 @@ def img_pie_percent(data: pd.DataFrame, label: str = "2012年"):
     plt.title("Percentage Distribution of Data")
     file_path = os.path.join(".", "Images", "img_pie_percent.png")
     plt.savefig(file_path)
+    plt.close()
 
     return file_path
 
@@ -169,6 +170,9 @@ def img_line_percent(data: pd.DataFrame):
 
     file_path = os.path.join(".", "Images", "img_line_percent.png")
     plt.savefig(file_path)
+    plt.close()
+
+    return file_path
 
 
 if __name__ == "__main__":
