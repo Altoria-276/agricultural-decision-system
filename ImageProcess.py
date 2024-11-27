@@ -82,7 +82,7 @@ def img_random_walk_process(
     # 显示并保存结果
     fig, ax = plt.subplots(dpi=dpi)
 
-    k = 0.9
+    k = 0.8
     ax.imshow(img * k + np.double(skeleton) * (1 - k))
     ax.axis("off")
     ax.set_title("Processed (Skeleton Overlay)", fontsize=12)

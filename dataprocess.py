@@ -61,7 +61,7 @@ params_name_2 = [
 ]
 
 
-def kringing(df: pd.DataFrame, params_name: List[str], num):
+def kringing(df: pd.DataFrame, params_name: List[str] = params_name, num=100):
     outpath = os.path.join(".", "kringing", "data")
     lon, lat = df[space[0]], df[space[1]]
 

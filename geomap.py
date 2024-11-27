@@ -60,7 +60,7 @@ params_name_2 = [
 
 
 class GeoMap:
-    def __init__(self, file_path, data: Optional[pd.DataFrame] = None):
+    def __init__(self, file_path):
         self.gdf: GeoDataFrame = gpd.read_file(file_path).to_crs(
             epsg=4326
         )  # 提取地图文件为 GeoDataFrame 格式，将gdf坐标系转换为经纬度坐标系
@@ -72,8 +72,6 @@ class GeoMap:
         self.dots_list: List[Dot] = []
         self.params_name: List[str] = []
         self.grid = None  # 初始默认未进行栅格化
-        if data:
-            self.load_dots_df(data)
 
     def is_inside(self, lon: float, lat: float) -> bool:
         """
@@ -130,10 +128,13 @@ class GeoMap:
             except ValueError as e:
                 print(e)
 
+        if self.grid:
+            self.grid.set_focus()
+
     def save_grid_image(self, label: str = "K"):
+        self.grid.set_value_matrix(label)
         fig, ax = plt.subplots()
         self.gdf.boundary.plot(ax=ax, color="black", linewidth=1)
-        self.grid.set_value_matrix(label)
 
         bounds = self.outline.bounds
         bounds = [bounds[0], bounds[2], bounds[1], bounds[3]]
@@ -154,8 +155,8 @@ class GeoMap:
         return file_path
 
     def save_grid_image_pure(self, label: str = "K"):
-        fig, ax = plt.subplots()
         self.grid.set_value_matrix(label)
+        fig, ax = plt.subplots()
         ax.imshow(self.grid.value_matrix, origin="lower", alpha=0.5)
         ax.axis("off")
 
@@ -200,6 +201,7 @@ class Grid:
         self.value_matrix: np.ndarray[float] = np.zeros((row_num, col_num), dtype=float)
         self.__init_cell()  #  赋值 cell_matrix & 中心点 & 有效性
         self.__syn_dots_list()
+        self.set_focus()
 
     def __repr__(self):
         return (
@@ -215,7 +217,7 @@ class Grid:
             col = floor((x - self.init_x) / self.size_x)
             row = floor((y - self.init_y) / self.size_y)
         else:
-            raise ValueError("点位超出栅格范围")
+            raise ValueError(f"点位({x},{y})超出栅格范围")
         return row, col
 
     def __init_cell(self):
