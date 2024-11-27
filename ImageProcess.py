@@ -134,6 +134,43 @@ def img_pca_loading(data: pd.DataFrame, params_name: List[str] = params_name, n_
     return file_path
 
 
+def img_pie_percent(data: pd.DataFrame, label: str = "2012年"):
+    offset = data[label] - data["基准"]
+    # 定义区间
+    bins = [float("-inf"), 0, 0.01, 0.05, 0.1, 0.2, float("inf")]
+    labels = ["<0%", "0-1%", "1-5%", "5-10%", "10-20%", ">20%"]
+
+    # 将数据分类到区间
+    categorized_data = pd.cut(offset, bins=bins, labels=labels, include_lowest=True)
+
+    # 计算每个区间的占比
+    value_counts = categorized_data.value_counts(normalize=True) * 100
+
+    # 绘制饼状图
+    plt.pie(value_counts, labels=value_counts.index, autopct="%1.1f%%", startangle=140)
+    plt.title("Percentage Distribution of Data")
+    file_path = os.path.join(".", "Images", "img_pie_percent.png")
+    plt.savefig(file_path)
+
+    return file_path
+
+
+def img_line_percent(data: pd.DataFrame):
+    se = data.mean()[3:].pct_change()[1:] * 100
+    # 绘制折线图
+    se.plot(kind="line", marker="o", linestyle="-", color="blue")
+
+    # 添加标题和标签
+    plt.title("年度百分比变化")
+    plt.xlabel("年份")
+    plt.ylabel("百分比变化(%)")
+    # 显示网格
+    plt.grid(True)
+
+    file_path = os.path.join(".", "Images", "img_line_percent.png")
+    plt.savefig(file_path)
+
+
 if __name__ == "__main__":
     image_path = "Images/img2.png"  # 文件可更换
     file_path = "Images/processed_images/img2.png"  # 路径可更换

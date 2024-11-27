@@ -137,7 +137,7 @@ class RegressionModel:
 # 示例用法
 if __name__ == "__main__":
     # 定义特征和目标
-    features = [
+    feature = [
         "P",
         "K",
         "N",
@@ -164,7 +164,10 @@ if __name__ == "__main__":
 
     # 创建实例
     model = RegressionModel(
-        model="Ridge", data=pd.read_excel(os.path.join(".", "数据", "水稻点位148.xlsx"), "原始数据"), features=features, target=target
+        model="Ridge",
+        data=pd.read_excel(os.path.join(".", "数据", "水稻点位148.xlsx"), "原始数据"),
+        feature=feature,
+        target=target,
     )
 
     # 训练并评估模型

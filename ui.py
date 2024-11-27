@@ -20,14 +20,11 @@ def ui():
             gr.Markdown("# 现存污染源贡献量变化影响分析")
             with gr.Row(equal_height=True):
                 p1_file_name_input = gr.Dropdown(
-                    choices=list(xlsx_files.keys()), value="无", label="数据文件", scale=3, allow_custom_value=True
+                    choices=list(xlsx_files.keys()), value="", label="数据文件", scale=3, allow_custom_value=True
                 )
-                p1_sheet_name_input = gr.Dropdown(choices=[], value="", label="选择数据页", interactive=True)
+                p1_sheet_name_input = gr.Dropdown(choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True)
                 p1_model_input = gr.Dropdown(
-                    choices=["Ridge", "Linear", "C"],
-                    value="",
-                    label="选择拟合模型",
-                    scale=3,
+                    choices=["Ridge", "Linear", "C"], value="", label="选择拟合模型", scale=3, allow_custom_value=True
                 )
 
             with gr.Row(equal_height=True):
@@ -58,10 +55,8 @@ def ui():
         with gr.Tab("风险区分析"):
             gr.Markdown("# 土壤重金属未来超标风险区分析")
             with gr.Row(equal_height=True):
-                with gr.Column():
-                    p3_file_data_input = gr.File(label="数据")
-                with gr.Column():
-                    p3_file_map_input = gr.File(label="地图文件")
+                p3_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), label="数据文件")
+                p3_map_name_input = gr.Dropdown(choices=list(shp_files.keys()), label="地图文件")
             with gr.Row(equal_height=True):
                 with gr.Column():
                     gr.Markdown("累积趋势分析")
