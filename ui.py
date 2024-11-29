@@ -25,7 +25,18 @@ def ui():
                     choices=list(xlsx_files.keys()), value="", label="数据文件", scale=3, allow_custom_value=True
                 )
                 p1_sheet_name_input = gr.Dropdown(choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True)
-                p1_model_input = gr.Dropdown(choices=["Ridge", "Linear", "C"], label="选择拟合模型", scale=3)
+                p1_model_input = gr.Dropdown(
+                    choices=[
+                        "Ridge",
+                        "Linear",
+                        "Lasso",
+                        "SVR",
+                        "DecisionTree",
+                        "RandomForest",
+                    ],
+                    label="选择拟合模型",
+                    scale=3,
+                )
 
             with gr.Row(equal_height=True):
                 p1_feature_input = gr.Dropdown(choices=[], label="自变量特征选择", multiselect=True, interactive=True, scale=3)
