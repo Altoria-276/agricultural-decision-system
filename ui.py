@@ -102,6 +102,12 @@ def ui():
                 p4_analysis_img = gr.Image(label="关键辅因分析")
             gr.Markdown("安全阈值计算")
             with gr.Row():
+                p4_factor1 = gr.Textbox(label="factor1")
+                p4_factor2 = gr.Textbox(label="factor2")
+                p4_factor3 = gr.Textbox(label="factor3")
+                p4_factor4 = gr.Textbox(label="factor4")
+                p4_factor5 = gr.Textbox(label="factor5")
+            with gr.Row():
                 p4_prediction_img = gr.Image(label="预测曲线")
                 p4_shiki_img = gr.Image(label="shiki")
             p4_threshold_output = gr.Textbox(label="安全阈值计算")

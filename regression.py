@@ -233,7 +233,7 @@ class RegressionModel:
         explainer = shap.Explainer(self.model, self.X)
         shap_values = explainer(self.X)
 
-        fig, ax = plt.subplots(figsize=(10, 8))
+        fig, ax = plt.subplots(figsize=(12, 10))
 
         shap.summary_plot(shap_values, self.X, plot_type="bar", show=False)
         ax.set_title("基于 SHAP 的特征重要性分析")
