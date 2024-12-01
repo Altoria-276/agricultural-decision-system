@@ -1,4 +1,5 @@
 import os
+from random import choice
 from typing import List
 import gradio as gr
 import numpy as np
@@ -8,7 +9,7 @@ from dataprocess import get_average_speed, kringing
 from geomap import GeoMap
 from imageprocess import img_pca_loading, img_random_walk_process, img_pie_percent, img_line_percent
 from regression import RegressionModel
-from utils import get_shp_files, get_xlsx_files
+from utils import get_model_choices, get_shp_files, get_xlsx_files
 
 
 def ui():
@@ -26,14 +27,7 @@ def ui():
                 )
                 p1_sheet_name_input = gr.Dropdown(choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True)
                 p1_model_input = gr.Dropdown(
-                    choices=[
-                        "Ridge",
-                        "Linear",
-                        "Lasso",
-                        "SVR",
-                        "DecisionTree",
-                        "RandomForest",
-                    ],
+                    choices=get_model_choices(),
                     label="选择拟合模型",
                     scale=3,
                 )
@@ -51,8 +45,18 @@ def ui():
         with gr.Tab("路径解析"):
             gr.Markdown("# 潜在历史污染源及污染路径解析")
             with gr.Row(equal_height=True):
-                p2_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), label="数据文件", value="", scale=2)
-                p2_map_name_input = gr.Dropdown(choices=list(shp_files.keys()), label="地图文件", value="", scale=2)
+                with gr.Column(scale=6):
+                    with gr.Row():
+                        p2_map_name_input = gr.Dropdown(choices=list(shp_files.keys()), label="地图文件", scale=2)
+                        p2_file_name_input = gr.Dropdown(
+                            choices=list(xlsx_files.keys()), value="", label="数据文件", scale=2, allow_custom_value=True
+                        )
+                        p2_sheet_name_input = gr.Dropdown(
+                            choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True
+                        )
+                    with gr.Row():
+                        p2_params_input = gr.Dropdown(choices=[], label="特征选择", multiselect=True, interactive=True, scale=3)
+                        p2_label_input = gr.Dropdown(choices=[], label="污染源特征选择", interactive=True, scale=1)
                 with gr.Column(scale=1):
                     p2_lon = gr.Textbox(label="东经")
                     p2_lat = gr.Textbox(label="北纬")
@@ -66,8 +70,8 @@ def ui():
         with gr.Tab("风险区分析"):
             gr.Markdown("# 土壤重金属未来超标风险区分析")
             with gr.Row(equal_height=True):
-                p3_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), value="", label="数据文件")
-                p3_map_name_input = gr.Dropdown(choices=list(shp_files.keys()), value="", label="地图文件")
+                p3_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), value="", label="数据文件", allow_custom_value=True)
+                p3_map_name_input = gr.Dropdown(choices=list(shp_files.keys()), label="地图文件")
 
             gr.Markdown("累积趋势分析")
             with gr.Row(equal_height=True):
@@ -90,10 +94,8 @@ def ui():
 
         with gr.Tab("主因和阈值计算"):
             with gr.Row(equal_height=True):
-                p4_file_name_input = gr.Dropdown(
-                    choices=list(xlsx_files.keys()), value="", label="数据文件", allow_custom_value=True, scale=2
-                )
-                p4_model_input = gr.Dropdown(choices=["Ridge", "Linear"], label="选择拟合模型", scale=2)
+                p4_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), label="数据文件", scale=2)
+                p4_model_input = gr.Dropdown(choices=get_model_choices(), label="选择拟合模型", scale=2)
                 p4_run_button = gr.Button(value="运行")
             gr.Markdown("归一化模型")
             p4_fitting_img = gr.Image(label="训练集和测试集拟合效果")
@@ -113,9 +115,6 @@ def ui():
             p4_threshold_output = gr.Textbox(label="安全阈值计算")
 
         # page1
-
-        p1_params: dict = {}
-
         p1_file_name_input.change(
             fn=lambda file_name: gr.update(choices=list(pd.read_excel(xlsx_files[file_name], sheet_name=None).keys())),
             inputs=p1_file_name_input,
@@ -124,7 +123,6 @@ def ui():
 
         def p1_sheet_change(file_name: str, sheet_name: str):
             data = pd.read_excel(xlsx_files[file_name], sheet_name)
-            p1_params["data"] = data
             update = gr.update(choices=data.columns.to_list())
             return update, update
 
@@ -132,24 +130,50 @@ def ui():
             fn=p1_sheet_change, inputs=[p1_file_name_input, p1_sheet_name_input], outputs=[p1_target_input, p1_feature_input]
         )
 
-        def p1_run_click(model: str, feature: List[str], target: str):
-            model = RegressionModel(model, p1_params["data"], feature, target)
+        def p1_run_click(file_name: str, sheet_name: str, model: str, feature: List[str], target: str):
+            data = pd.read_excel(file_name, sheet_name)
+            model = RegressionModel(model, data, feature, target)
             model.train_and_evaluate_model()
             img_path = model.plot_coefficients()
             return img_path
 
-        p1_run_button.click(fn=p1_run_click, inputs=[p1_model_input, p1_feature_input, p1_target_input], outputs=p1_img2_output)
+        p1_run_button.click(
+            fn=p1_run_click,
+            inputs=[
+                p1_file_name_input,
+                p1_sheet_name_input,
+                p1_model_input,
+                p1_feature_input,
+                p1_target_input,
+            ],
+            outputs=p1_img2_output,
+        )
 
         # page2
-        def p2_run_click(file_name: str, map_name: str):
+        p2_file_name_input.change(
+            fn=lambda file_name: gr.update(choices=list(pd.read_excel(xlsx_files[file_name], sheet_name=None).keys())),
+            inputs=p2_file_name_input,
+            outputs=p2_sheet_name_input,
+        )
+
+        def p2_sheet_change(file_name: str, sheet_name: str):
+            data = pd.read_excel(xlsx_files[file_name], sheet_name)
+            update = gr.update(choices=data.columns.to_list())
+            return update
+
+        p2_sheet_name_input.change(fn=p2_sheet_change, inputs=[p2_file_name_input, p2_sheet_name_input], outputs=p2_params_input)
+
+        p2_params_input.change(fn=lambda x: gr.update(choices=x), inputs=p2_params_input, outputs=p2_label_input)
+
+        def p2_run_click(file_name: str, map_name: str, params_name: List[str], label: str):
             data = pd.read_excel(xlsx_files[file_name], sheet_name="原始数据")
             gmap = GeoMap(shp_files[map_name])
-            gmap.load_dots_df(data)
-            kringing(data, num=50)
-            gmap.load_dots_df(pd.read_excel(os.path.join(".", "kringing", "data.xlsx")))
+            gmap.load_dots_df(data, params_name=params_name)
+            kringing_path = kringing(data, params_name=params_name, num=50)
+            gmap.load_dots_df(pd.read_excel(kringing_path), params_name=params_name)
             gmap.grid_paint(20, 20)
-            pca_path = img_pca_loading(data)
-            img_grid_pure_path = gmap.save_grid_image_pure("Fe")
+            pca_path = img_pca_loading(data, params_name=params_name)
+            img_grid_pure_path = gmap.save_grid_image_pure(label)
             img_random_walk_path = img_random_walk_process(img_grid_pure_path)
             return (
                 gmap.lon,
@@ -160,7 +184,14 @@ def ui():
             )
 
         p2_run_button.click(
-            fn=p2_run_click, inputs=[p2_file_name_input, p2_map_name_input], outputs=[p2_lon, p2_lat, p2_pca_img, p2_grid_img, p2_path_img]
+            fn=p2_run_click,
+            inputs=[
+                p2_file_name_input,
+                p2_map_name_input,
+                p2_params_input,
+                p2_label_input,
+            ],
+            outputs=[p2_lon, p2_lat, p2_pca_img, p2_grid_img, p2_path_img],
         )
 
         # page3
@@ -176,26 +207,7 @@ def ui():
             gmap = GeoMap(shp_files[map_name])
             gmap.load_dots_df(
                 data,
-                params_name=[
-                    "基准",
-                    "2008年",
-                    "2009年",
-                    "2010年",
-                    "2011年",
-                    "2012年",
-                    "2013年",
-                    "2014年",
-                    "2015年",
-                    "2016年",
-                    "2017年",
-                    "2018年",
-                    "2019年",
-                    "2020年",
-                    "2021年",
-                    "2022年",
-                    "2023年",
-                    "2024年",
-                ],
+                params_name=list(data.columns[3:]),
             )
             img_dot_path = gmap.save_dot_image(label)
             img_pie_path = img_pie_percent(data, label)
