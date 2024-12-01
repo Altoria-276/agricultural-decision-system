@@ -5,9 +5,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import shap
+from sklearn.discriminant_analysis import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
 from sklearn.linear_model import Lasso, LinearRegression, Ridge
 from matplotlib import rcParams
 import matplotlib
@@ -30,6 +31,7 @@ class RegressionModel:
         self.y = data[target]
         self.test_size = test_size
         self.random_state = random_state
+        self.scaler = StandardScaler().set_output(transform="pandas")
         self.model = self.__load_model(model)
         self.is_trained = False
 
@@ -52,31 +54,33 @@ class RegressionModel:
         训练回归模型并评估其性能。
 
         返回：
-        - 包含模型系数、MSE、R² 和预测结果的字典。
+        - 包含 MAE & RMSE & R² 的字典。
         """
         # 将数据集划分为训练集和测试集
         X_train, X_test, y_train, y_test = train_test_split(self.X, self.y, test_size=self.test_size, random_state=self.random_state)
 
         # 训练模型
-        self.model.fit(X_train, y_train)
+        X_train_scaled = self.scaler.fit_transform(X_train)
+        self.model.fit(X_train_scaled, y_train)
 
         # 进行预测
-        y_train_pred = self.model.predict(X_train)
-        y_test_pred = self.model.predict(X_test)
+        X_test_scaled = self.scaler.transform(X_test)
+        y_test_pred = self.model.predict(X_test_scaled)
+        y_train_pred = self.model.predict(X_train_scaled)
 
         # 计算评估指标
-        mse = mean_squared_error(y_test, y_test_pred)
+        rmse = root_mean_squared_error(y_test, y_test_pred)
+        mae = mean_absolute_error(y_test, y_test_pred)
         r2 = r2_score(y_test, y_test_pred)
-        # mae
+
         # 存储结果
         self.results = {
-            "mse": mse,
+            "rmse": rmse,
+            "mae": mae,
             "r2": r2,
-            "X_train": X_train,
-            "X_test": X_test,
             "y_train": y_train,
-            "y_test": y_test,
             "y_train_pred": y_train_pred,
+            "y_test": y_test,
             "y_test_pred": y_test_pred,
         }
 
@@ -103,7 +107,10 @@ class RegressionModel:
             test_values = fixed_values.copy()
             test_values[variable_feature] = mid_point
             test_data = pd.DataFrame([test_values])[self.feature]
-            predicted_value = self.model.predict(test_data)[0]
+
+            test_data_scaled = self.scaler.transform(test_data)
+            predicted_value = self.model.predict(test_data_scaled)[0]
+
             if predicted_value < target_value:
                 lower_bound = mid_point
             else:
@@ -130,7 +137,8 @@ class RegressionModel:
         curve_data = curve_data[self.feature]  # 确保特征顺序一致
 
         # 预测值
-        y_pred_curve = self.model.predict(curve_data)
+        curve_data_scaled = self.scaler.transform(curve_data)
+        y_pred_curve = self.model.predict(curve_data_scaled)
 
         # 绘制曲线
 
@@ -156,7 +164,8 @@ class RegressionModel:
         使用反事实推理的方法计算每个特征的权重，并绘制饼图。
         """
         # 原始预测值
-        original_pred = self.model.predict(self.X)
+        X_scaled = self.scaler.transform(self.X)
+        original_pred = self.model.predict(X_scaled)
 
         # 初始化权重列表
         counterfactual_weights = []
@@ -168,7 +177,8 @@ class RegressionModel:
             X_counterfactual[feature] = 0
 
             # 预测新值
-            counterfactual_pred = self.model.predict(X_counterfactual)
+            X_counterfactual_scaled = self.scaler.transform(X_counterfactual)
+            counterfactual_pred = self.model.predict(X_counterfactual_scaled)
 
             # 计算原始预测与反事实预测的绝对差值的均值
             weight = np.mean(np.abs(original_pred - counterfactual_pred))
@@ -230,12 +240,13 @@ class RegressionModel:
         """
         绘制基于 SHAP 值的特征重要性图。
         """
-        explainer = shap.Explainer(self.model, self.X)
-        shap_values = explainer(self.X)
+        X_scaled = self.scaler.transform(self.X)
+        explainer = shap.Explainer(self.model.predict, X_scaled)
+        shap_values = explainer(X_scaled)
 
         fig, ax = plt.subplots(figsize=(12, 10))
 
-        shap.summary_plot(shap_values, self.X, plot_type="bar", show=False)
+        shap.summary_plot(shap_values, X_scaled, plot_type="bar", show=False)
         ax.set_title("基于 SHAP 的特征重要性分析")
         ax.set_xlabel("特征重要性")
         ax.set_ylabel("特征")
@@ -255,7 +266,8 @@ class RegressionModel:
         # 使用平均特征值进行基准预测
         X_mean = X_mean.values.reshape(1, -1)
         X_mean = pd.DataFrame(X_mean, columns=self.X.columns)  # 确保 X_mean 是 DataFrame 类型
-        y_base = self.model.predict(X_mean)
+        X_mean_scaled = self.scaler.transform(X_mean)
+        y_base = self.model.predict(X_mean_scaled)
 
         # 初始化哈森矩阵
         hessian_matrix = np.zeros((len(self.feature), len(self.feature)))
@@ -274,7 +286,8 @@ class RegressionModel:
                 X_copy = pd.DataFrame(X_copy, columns=self.X.columns)
 
                 # 进行预测
-                y1 = self.model.predict(X_copy)
+                X_copy_scaled = self.scaler.transform(X_copy)
+                y1 = self.model.predict(X_copy_scaled)
 
                 # 计算差异
                 diff_y = y1 - y_base

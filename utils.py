@@ -21,3 +21,14 @@ def get_xlsx_files():
 
 def get_shp_files():
     return get_files(os.path.join(".", "地图"), "shp")
+
+
+def get_model_choices():
+    return [
+        "Ridge",
+        "Linear",
+        "Lasso",
+        "SVR",
+        "DecisionTree",
+        "RandomForest",
+    ]
