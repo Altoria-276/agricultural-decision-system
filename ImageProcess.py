@@ -9,6 +9,7 @@ from skimage.measure import label, regionprops
 import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+import scipy.stats as stats
 import seaborn as sns
 
 plt.rcParams["font.sans-serif"] = ["SimHei"]  # 用来正常显示中文标签
@@ -87,7 +88,8 @@ def img_random_walk_process(
     ax.axis("off")
     ax.set_title("Processed (Skeleton Overlay)", fontsize=12)
 
-    file_path = os.path.join(".", "Images", "img_random_walk.png")
+    # file_path = os.path.join(".", "Images", "img_random_walk.png")
+    file_path = image_path + "_random_walk.png"
 
     fig.savefig(file_path, dpi=dpi)
     plt.close(fig)
@@ -107,29 +109,41 @@ def img_pca_loading(data: pd.DataFrame, params_name: List[str] = params_name, n_
     pca = PCA(n_components=n_components)
     pca_result = pca.fit_transform(data_scaled)
 
-    # 输出主成分的方差贡献率
-    # print(f"主成分的方差贡献率: {pca.explained_variance_ratio_}")
-    # print(f"累计方差贡献率: {np.cumsum(pca.explained_variance_ratio_)}")
-
-    # 可视化降维后的数据 (前两个主成分)
-    # if n_components >= 2:
-    #     plt.figure(figsize=(8, 6))
-    #     plt.scatter(pca_result[:, 0], pca_result[:, 1], alpha=0.5)
-    #     plt.title("PCA - 2D Projection")
-    #     plt.xlabel("主成分1")
-    #     plt.ylabel("主成分2")
-    #     plt.show()
-
-    # 可视化负载矩阵
+    # 获取负载矩阵，并转换为百分比
     loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
     loadings_df = pd.DataFrame(loadings, index=params_name, columns=[f"主成分{i+1}" for i in range(n_components)])
 
-    fig, ax = plt.subplots()
+    # 创建图形
+    fig, axes = plt.subplots(n_components, 1, figsize=(10, 2 * n_components))  # 每个主成分一个小图
+    if n_components == 1:  # 如果只有一个主成分，axes 是单个对象，而不是数组
+        axes = [axes]
 
-    # 绘制热力图
-    sns.heatmap(loadings_df, annot=True, cmap="coolwarm", center=0, ax=ax)
-    ax.set_title("PCA负载矩阵")
-    file_path = os.path.join(".", "Images", "Img_pca_loading.png")
+    # 绘制每个主成分的负载矩阵
+    for i in range(n_components):
+        ax = axes[i]
+
+        # 获取当前主成分的负载矩阵
+        loading_values = loadings_df.iloc[:, i]
+        loading_percent = loading_values  # 直接使用负载值，而不转换为百分比
+
+        # 绘制负载矩阵条形图，横轴是影响成分，纵轴是负载值
+        ax.bar(loading_percent.index, loading_percent, color='blue')
+
+        # 设置纵轴范围固定在 -1 到 1
+        ax.set_ylim(-1, 1)
+
+        # 设置图形标题与标签
+        ax.set_title(f"主成分 {i + 1}", fontsize=12)
+        ax.set_xlabel("成分", fontsize=10)
+        ax.set_ylabel("负载值", fontsize=10)
+
+        # 标注负载值（没有百分号）
+        for j, value in enumerate(loading_percent):
+            ax.text(j, value, f"{value:.2f}", ha='center', va='bottom' if value > 0 else 'top', fontsize=9)
+
+    # 保存图像
+    file_path = os.path.join(".", "Images", "Img_pca_loading_components.png")
+    fig.tight_layout()
     fig.savefig(file_path)
     plt.close()
 
@@ -177,6 +191,78 @@ def img_line_percent(data: pd.DataFrame):
     plt.close()
 
     return file_path
+
+# TODO XYC新增如下：
+def anova_and_plot(data, params_name, output_filename="Images/anova_p_values.png"):
+    """
+    对给定的数据集中的每一列因素进行单因素方差分析，并绘制每个因素的p值柱状图。
+    参数:
+        data (pd.DataFrame): 包含待分析数据的DataFrame。
+        params_name (list of str): 需要进行方差分析的因素名称列表。
+        output_filename (str): 保存图表的文件名，默认为"anova_p_values.png"。
+    """
+    # 创建一个虚拟的二元组别
+    data['group'] = np.random.choice(['A', 'B'], size=len(data), p=[0.5, 0.5])
+
+    # 创建一个空字典来存储每个因素的p值
+    p_values = {}
+
+    # 对每个因素执行ANOVA
+    for param in params_name:
+        group_a = data[data['group'] == 'A'][param]
+        group_b = data[data['group'] == 'B'][param]
+
+        # 检查是否有足够的数据点来进行ANOVA
+        if len(group_a) > 1 and len(group_b) > 1:
+            f_val, p_val = stats.f_oneway(group_a, group_b)
+            p_values[param] = p_val
+        else:
+            print(f"Warning: Not enough data points for {param} to perform ANOVA.")
+
+    # 绘制柱状图
+    fig, ax = plt.subplots(figsize=(12, 8))
+    bars = ax.bar(p_values.keys(), p_values.values(), color='skyblue')
+
+    # 在y=0.05处画一条虚线
+    ax.axhline(y=0.05, color='r', linestyle='--')
+
+    # 设置图表标题和轴标签
+    ax.set_title('P-values from ANOVA for Each Factor')
+    ax.set_xlabel('Factors')
+    ax.set_ylabel('P-value')
+
+    # 自动调整x轴标签以避免重叠
+    plt.xticks(rotation=45, ha='right')
+
+    # 保存图片
+    plt.tight_layout()
+    plt.savefig(output_filename)
+
+
+def plot_correlation_matrix(data, params_name, output_filename="Images/correlation_matrix.png"):
+    """
+    对给定的数据集中的每一列因素进行两两相关性分析，并绘制相关性矩阵热图。
+    参数:
+        data (pd.DataFrame): 包含待分析数据的DataFrame。
+        params_name (list of str): 需要进行相关性分析的因素名称列表。
+        output_filename (str): 保存图表的文件名，默认为"correlation_matrix.png"。
+    """
+    # 选择需要分析的列
+    selected_data = data[params_name]
+
+    # 计算相关性矩阵
+    corr_matrix = selected_data.corr()
+
+    # 绘制相关性矩阵热图
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap='coolwarm', linewidths=.5)
+
+    # 设置图表标题
+    plt.title('Correlation Matrix of Factors')
+
+    # 保存图片
+    plt.tight_layout()
+    plt.savefig(output_filename)
 
 
 if __name__ == "__main__":
