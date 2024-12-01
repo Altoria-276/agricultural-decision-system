@@ -54,7 +54,7 @@ class RegressionModel:
         # 计算评估指标
         mse = mean_squared_error(y_test, y_test_pred)
         r2 = r2_score(y_test, y_test_pred)
-
+        # mae
         # 存储结果
         self.results = {
             "coefficients": pd.DataFrame({"Feature": self.feature, "Coefficient": self.model.coef_}),

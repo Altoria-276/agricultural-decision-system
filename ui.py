@@ -132,7 +132,7 @@ def ui():
             gmap.load_dots_df(pd.read_excel(os.path.join(".", "kringing", "data.xlsx")))
             gmap.grid_paint(20, 20)
             pca_path = img_pca_loading(data)
-            img_grid_pure_path = gmap.save_grid_image_pure("Cd")
+            img_grid_pure_path = gmap.save_grid_image_pure("Fe")
             img_random_walk_path = img_random_walk_process(img_grid_pure_path)
             return (
                 gmap.lon,
