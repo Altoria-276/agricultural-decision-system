@@ -25,7 +25,18 @@ def ui():
                     choices=list(xlsx_files.keys()), value="", label="数据文件", scale=3, allow_custom_value=True
                 )
                 p1_sheet_name_input = gr.Dropdown(choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True)
-                p1_model_input = gr.Dropdown(choices=["Ridge", "Linear", "C"], label="选择拟合模型", scale=3)
+                p1_model_input = gr.Dropdown(
+                    choices=[
+                        "Ridge",
+                        "Linear",
+                        "Lasso",
+                        "SVR",
+                        "DecisionTree",
+                        "RandomForest",
+                    ],
+                    label="选择拟合模型",
+                    scale=3,
+                )
 
             with gr.Row(equal_height=True):
                 p1_feature_input = gr.Dropdown(choices=[], label="自变量特征选择", multiselect=True, interactive=True, scale=3)
@@ -90,6 +101,12 @@ def ui():
                 p4_shap_img = gr.Image(label="主因识别")
                 p4_analysis_img = gr.Image(label="关键辅因分析")
             gr.Markdown("安全阈值计算")
+            with gr.Row():
+                p4_factor1 = gr.Textbox(label="factor1")
+                p4_factor2 = gr.Textbox(label="factor2")
+                p4_factor3 = gr.Textbox(label="factor3")
+                p4_factor4 = gr.Textbox(label="factor4")
+                p4_factor5 = gr.Textbox(label="factor5")
             with gr.Row():
                 p4_prediction_img = gr.Image(label="预测曲线")
                 p4_shiki_img = gr.Image(label="shiki")

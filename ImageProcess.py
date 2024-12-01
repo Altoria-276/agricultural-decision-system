@@ -161,10 +161,11 @@ def img_pie_percent(data: pd.DataFrame, label: str = "2012年"):
 
 
 def img_line_percent(data: pd.DataFrame):
-    fig, ax = plt.subplots()
-    se = data.mean()[3:].pct_change()[1:] * 100
-    # 绘制折线图
-    se.plot(kind="line", marker="o", linestyle="-", color="blue", ax=ax)
+    fig, ax = plt.subplots(figsize=(15, 6))
+    ans = data.iloc[:, 3:].T.pct_change().T.iloc[:, 1:]
+
+    # 绘制箱线图
+    ax.boxplot(x=ans)
 
     # 添加标题和标签
     ax.set_title("年度百分比变化")

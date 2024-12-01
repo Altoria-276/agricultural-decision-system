@@ -5,12 +5,17 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import shap
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.linear_model import Lasso, LinearRegression, Ridge
 from matplotlib import rcParams
 import matplotlib
+import seaborn as sns
 import os
+
+from sklearn.svm import SVR
+from sklearn.tree import DecisionTreeRegressor
 
 matplotlib.rcParams["font.sans-serif"] = ["SimHei"]
 matplotlib.rcParams["axes.unicode_minus"] = False
@@ -31,8 +36,16 @@ class RegressionModel:
     def __load_model(self, model: str):
         if model == "Ridge":
             return Ridge()
+        elif model == "Lasso":
+            return Lasso()
+        elif model == "SVR":
+            return SVR()
+        elif model == "DecisionTree":
+            return DecisionTreeRegressor()
+        elif model == "RandomForest":
+            return RandomForestRegressor()
         else:
-            return Ridge()
+            return LinearRegression()
 
     def train_and_evaluate_model(self):
         """
@@ -57,7 +70,6 @@ class RegressionModel:
         # mae
         # 存储结果
         self.results = {
-            "coefficients": pd.DataFrame({"Feature": self.feature, "Coefficient": self.model.coef_}),
             "mse": mse,
             "r2": r2,
             "X_train": X_train,
@@ -141,13 +153,37 @@ class RegressionModel:
 
     def plot_coefficients(self):
         """
+        使用反事实推理的方法计算每个特征的权重，并绘制饼图。
+        """
+        # 原始预测值
+        original_pred = self.model.predict(self.X)
+
+        # 初始化权重列表
+        counterfactual_weights = []
+
+        # 遍历每个特征
+        for feature in self.feature:
+            # 创建副本并将当前特征设为 0
+            X_counterfactual = self.X.copy()
+            X_counterfactual[feature] = 0
+
+            # 预测新值
+            counterfactual_pred = self.model.predict(X_counterfactual)
+
+            # 计算原始预测与反事实预测的绝对差值的均值
+            weight = np.mean(np.abs(original_pred - counterfactual_pred))
+            counterfactual_weights.append(weight)
+
+        # 归一化权重，使其总和为 1
+        total_weight = sum(counterfactual_weights)
+        normalized_weights = [w / total_weight for w in counterfactual_weights]
+        """
         绘制模型系数的绝对值饼图。
         """
 
         fig, ax = plt.subplots()
 
-        coefficients = abs(self.results["coefficients"]["Coefficient"])
-        ax.pie(coefficients, labels=self.feature, autopct="%1.1f%%", startangle=90)
+        ax.pie(normalized_weights, labels=self.feature, autopct="%1.1f%%", startangle=90)
         ax.set_title("基于系数的特征重要性")
         ax.axis("equal")
 
@@ -197,7 +233,7 @@ class RegressionModel:
         explainer = shap.Explainer(self.model, self.X)
         shap_values = explainer(self.X)
 
-        fig, ax = plt.subplots(figsize=(10, 8))
+        fig, ax = plt.subplots(figsize=(12, 10))
 
         shap.summary_plot(shap_values, self.X, plot_type="bar", show=False)
         ax.set_title("基于 SHAP 的特征重要性分析")
@@ -205,6 +241,79 @@ class RegressionModel:
         ax.set_ylabel("特征")
 
         img_path = os.path.join(".", "Images", "shap_importance.png")
+        fig.savefig(img_path)
+        plt.close()
+        return img_path
+
+    def plot_hessian_matrix(self):
+        """
+        计算并绘制上三角的哈森矩阵。
+        """
+        # 计算特征的平均值
+        X_mean = self.X.mean(axis=0)
+
+        # 使用平均特征值进行基准预测
+        X_mean = X_mean.values.reshape(1, -1)
+        X_mean = pd.DataFrame(X_mean, columns=self.X.columns)  # 确保 X_mean 是 DataFrame 类型
+        y_base = self.model.predict(X_mean)
+
+        # 初始化哈森矩阵
+        hessian_matrix = np.zeros((len(self.feature), len(self.feature)))
+
+        # 计算哈森矩阵中的每个元素
+        for i in range(len(self.feature)):
+            for j in range(i, len(self.feature)):  # 只计算上三角部分
+                # 复制原始数据集，并确保保持列名
+                X_copy = self.X.copy()
+
+                # 将第 i 和第 j 个特征的值分别乘以 1.01
+                X_copy[self.feature[i]] = X_copy[self.feature[i]] * 1.01
+                X_copy[self.feature[j]] = X_copy[self.feature[j]] * 1.01
+
+                # 确保传入的数据保持 DataFrame 类型
+                X_copy = pd.DataFrame(X_copy, columns=self.X.columns)
+
+                # 进行预测
+                y1 = self.model.predict(X_copy)
+
+                # 计算差异
+                diff_y = y1 - y_base
+                diff_X_i = X_copy[self.feature[i]] - self.X[self.feature[i]]
+                diff_X_j = X_copy[self.feature[j]] - self.X[self.feature[j]]
+
+                # 计算哈森矩阵的值
+                hessian_matrix[i, j] = np.sum((diff_y**2) / (diff_X_i * diff_X_j))
+
+                # 对称填充
+                if i != j:
+                    hessian_matrix[j, i] = hessian_matrix[i, j]
+
+        # 使用 seaborn 绘制热图
+        fig, ax = plt.subplots(figsize=(12, 8))
+
+        sns.heatmap(
+            hessian_matrix,
+            annot=False,
+            fmt=".4f",
+            xticklabels=self.feature,
+            yticklabels=self.feature,
+            cmap="coolwarm",
+            center=0,
+            mask=np.tril(np.ones_like(hessian_matrix, dtype=bool)),
+            cbar_kws={"label": "相互影响强度"},
+            ax=ax,
+        )
+
+        # 添加标题和标签
+        ax.set_title("关联辅因分析", fontsize=18, weight="bold")
+        ax.set_xlabel("特征", fontsize=14, weight="bold")
+        ax.set_ylabel("特征", fontsize=14, weight="bold")
+
+        # 优化图形边框和网格
+        ax.grid(False)
+        fig.tight_layout()
+
+        img_path = os.path.join(".", "Images", "hessian.png")
         fig.savefig(img_path)
         plt.close()
         return img_path
