@@ -102,25 +102,3 @@ def get_average_speed(data: pd.DataFrame):
     se = data.mean()[3:]
     res = (se["2024年"] - se["2008年"]) / (2024 - 2008)
     return res
-
-
-def run():
-    file_path_shp = os.path.join(".", "数据", "湘潭县界.shp")
-
-    kringing(pd.read_excel(os.path.join(".", "数据", "水稻点位148.xlsx")), params_name, 100)
-
-    file_path_df = os.path.join(".", "数据", "水稻点位148.xlsx")
-    file_path_kringing = os.path.join(".", "kringing", "data.xlsx")
-
-    gmap = GeoMap(file_path_shp)
-    gmap.load_dots_df(pd.read_excel(file_path_kringing))
-    gmap.load_dots_df(pd.read_excel(file_path_df))
-    gmap.grid_paint(grid_row=40, grid_col=40)
-    grid = gmap.grid
-    grid.set_focus()
-
-    gmap.save_grid_image_grey("Fe")
-
-
-if __name__ == "__main__":
-    run()

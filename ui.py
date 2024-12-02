@@ -1,3 +1,4 @@
+from re import L
 from typing import List
 import gradio as gr
 import numpy as np
@@ -5,7 +6,16 @@ import pandas as pd
 
 from dataprocess import get_average_speed, kringing
 from geomap import GeoMap
-from imageprocess import img_pca_loading, img_random_walk_process, img_pie_percent, img_line_percent
+from imageprocess import (
+    img_pca_loading,
+    img_random_walk_process,
+    img_pie_percent,
+    img_line_percent,
+    plot_Cd,
+    plot_anova,
+    plot_bar,
+    plot_correlation_matrix,
+)
 from regression import RegressionModel
 from utils import get_model_choices, get_shp_files, get_xlsx_files
 
@@ -15,7 +25,9 @@ def ui():
     shp_files = get_shp_files()
     xlsx_files = get_xlsx_files()
 
-    with gr.Blocks() as ui:
+    custom_theme = gr.themes.Default().set(block_border_width="5px")
+
+    with gr.Blocks(custom_theme) as ui:
         gr.Markdown("## “污染源—土壤—活化—作物”全链条风险预警模拟器")
         with gr.Tab("影响分析"):
             gr.Markdown("# 现存污染源贡献量变化影响分析")
@@ -119,7 +131,7 @@ def ui():
                 p4_shiki_img = gr.Image(label="shiki")
             p4_threshold_output = gr.Textbox(label="安全阈值计算")
         with gr.Tab("区域分布预测"):
-            gr.Markdown("# 土壤重金属活化主因及安全阈值测算")
+            gr.Markdown("# 农产品重金属超标区域分布预测")
             with gr.Row(equal_height=True):
                 p5_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), label="数据文件")
                 p5_sheet_name_input = gr.Dropdown(choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True)
@@ -128,6 +140,23 @@ def ui():
                 p5_feature_input = gr.Dropdown(choices=[], label="自变量特征选择", multiselect=True, interactive=True, scale=3)
                 p5_target_input = gr.Dropdown(choices=[], label="因变量特征选择", interactive=True, scale=1)
                 p5_run_button = gr.Button(value="运行", scale=1)
+            gr.Markdown("指标筛选")
+            with gr.Row():
+                p5_Cd_img = gr.Image(label="土壤作物对应")
+                p5_anova_img = gr.Image(label="方差分析")
+            with gr.Row():
+                p5_correlation_img = gr.Image(label="相关分析")
+                p5_shap_img = gr.Image(label="主因分析")
+
+            with gr.Row(equal_height=True):
+                p5_model_input_1 = gr.Dropdown(choices=get_model_choices(), label="选择模型 1")
+                p5_model_input_2 = gr.Dropdown(choices=get_model_choices(), label="选择模型 2")
+                p5_model_input_3 = gr.Dropdown(choices=get_model_choices(), label="选择模型 3")
+                p5_run_button_2 = gr.Button(value="运行")
+            with gr.Row():
+                p5_rmse_img = gr.Image(label="RMSE")
+                p5_mae_img = gr.Image(label="MAE")
+                p5_r2_img = gr.Image(label="R2")
 
         # page1
         p1_file_name_input.change(
@@ -372,6 +401,97 @@ def ui():
             outputs=[
                 p4_threshold_output,
                 p4_prediction_img,
+            ],
+        )
+
+        # page5
+
+        p5_file_name_input.change(
+            fn=lambda file_name: gr.update(choices=list(pd.read_excel(xlsx_files[file_name], sheet_name=None).keys())),
+            inputs=p5_file_name_input,
+            outputs=p5_sheet_name_input,
+        )
+
+        def p5_sheet_change(file_name: str, sheet_name: str):
+            data = pd.read_excel(xlsx_files[file_name], sheet_name)
+            update = gr.update(choices=data.columns.to_list())
+            return update, update
+
+        p5_sheet_name_input.change(
+            fn=p5_sheet_change, inputs=[p5_file_name_input, p5_sheet_name_input], outputs=[p5_target_input, p5_feature_input]
+        )
+
+        def p5_run_click(file_name: str, sheet_name: str, model_name: str, feature: List[str], target: str):
+            data = pd.read_excel(get_xlsx_files()[file_name], sheet_name)
+            model = RegressionModel(model_name, data, feature, target)
+            model.train_and_evaluate_model()
+            img_Cd_path = plot_Cd(data)
+            img_anova_path = plot_anova(data, feature)
+            img_shap_path = model.plot_shap_importance()
+            img_correlation_path = plot_correlation_matrix(data, feature)
+            return [img_Cd_path, img_anova_path, img_shap_path, img_correlation_path]
+
+        p5_run_button.click(
+            fn=p5_run_click,
+            inputs=[
+                p5_file_name_input,
+                p5_sheet_name_input,
+                p5_model_input,
+                p5_feature_input,
+                p5_target_input,
+            ],
+            outputs=[
+                p5_Cd_img,
+                p5_anova_img,
+                p5_correlation_img,
+                p5_shap_img,
+            ],
+        )
+
+        def p5_run_click_2(
+            file_name: str,
+            sheet_name: str,
+            feature: List[str],
+            target: str,
+            model_name_1: str,
+            model_name_2: str,
+            model_name_3: str,
+        ):
+            data = pd.read_excel(get_xlsx_files()[file_name], sheet_name)
+            model_1 = RegressionModel(model_name_1, data, feature, target)
+            model_2 = RegressionModel(model_name_2, data, feature, target)
+            model_3 = RegressionModel(model_name_3, data, feature, target)
+
+            results = pd.DataFrame(
+                [
+                    model_1.train_and_evaluate_model(),
+                    model_2.train_and_evaluate_model(),
+                    model_3.train_and_evaluate_model(),
+                ],
+                index=[model_name_1, model_name_2, model_name_3],
+            )
+
+            img_rmse_path = plot_bar(results, "rmse")
+            img_mae_path = plot_bar(results, "mae")
+            img_r2_path = plot_bar(results, "r2")
+
+            return [img_rmse_path, img_mae_path, img_r2_path]
+
+        p5_run_button_2.click(
+            fn=p5_run_click_2,
+            inputs=[
+                p5_file_name_input,
+                p5_sheet_name_input,
+                p5_feature_input,
+                p5_target_input,
+                p5_model_input_1,
+                p5_model_input_2,
+                p5_model_input_3,
+            ],
+            outputs=[
+                p5_rmse_img,
+                p5_mae_img,
+                p5_r2_img,
             ],
         )
 

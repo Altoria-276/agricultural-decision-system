@@ -201,14 +201,12 @@ def img_line_percent(data: pd.DataFrame):
     return file_path
 
 
-# TODO XYC新增如下：
-def anova_and_plot(data, params_name, output_filename="Images/anova_p_values.png"):
+def plot_anova(data, params_name):
     """
     对给定的数据集中的每一列因素进行单因素方差分析，并绘制每个因素的p值柱状图。
     参数:
         data (pd.DataFrame): 包含待分析数据的DataFrame。
         params_name (list of str): 需要进行方差分析的因素名称列表。
-        output_filename (str): 保存图表的文件名，默认为"anova_p_values.png"。
     """
     # 创建一个虚拟的二元组别
     data["group"] = np.random.choice(["A", "B"], size=len(data), p=[0.5, 0.5])
@@ -244,17 +242,21 @@ def anova_and_plot(data, params_name, output_filename="Images/anova_p_values.png
     plt.xticks(rotation=45, ha="right")
 
     # 保存图片
-    plt.tight_layout()
-    plt.savefig(output_filename)
+    file_path = os.path.join(".", "Images", "img_anova_p_values.png")
+
+    fig.tight_layout()
+    fig.savefig(file_path)
+    plt.close()
+
+    return file_path
 
 
-def plot_correlation_matrix(data, params_name, output_filename="Images/correlation_matrix.png"):
+def plot_correlation_matrix(data, params_name):
     """
     对给定的数据集中的每一列因素进行两两相关性分析，并绘制相关性矩阵热图。
     参数:
         data (pd.DataFrame): 包含待分析数据的DataFrame。
         params_name (list of str): 需要进行相关性分析的因素名称列表。
-        output_filename (str): 保存图表的文件名，默认为"correlation_matrix.png"。
     """
     # 选择需要分析的列
     selected_data = data[params_name]
@@ -263,51 +265,47 @@ def plot_correlation_matrix(data, params_name, output_filename="Images/correlati
     corr_matrix = selected_data.corr()
 
     # 绘制相关性矩阵热图
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm", linewidths=0.5)
+    fig, ax = plt.subplots(figsize=(10, 8))
+    sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm", linewidths=0.5, ax=ax)
 
     # 设置图表标题
-    plt.title("Correlation Matrix of Factors")
+    ax.set_title("Correlation Matrix of Factors")
 
     # 保存图片
-    plt.tight_layout()
-    plt.savefig(output_filename)
+    file_path = os.path.join(".", "Images", "img_correlation_matrix.png")
+
+    fig.tight_layout()
+    fig.savefig(file_path)
+    plt.close()
+
+    return file_path
 
 
-if __name__ == "__main__":
-    image_path = "Images/img2.png"  # 文件可更换
-    file_path = "Images/processed_images/img2.png"  # 路径可更换
-    result = img_random_walk_process(image_path, file_path)
+def plot_Cd(data):
+    x = data["Cd"]
+    y = data["水稻Cd"]
 
-    # 示例调用
-    file_path = "数据/水稻点位148.xlsx"  # Excel文件路径
-    sheet_name = "原始数据"  # Excel表单名称
-    params_name = [
-        "P",
-        "K",
-        "N",
-        "Cr",
-        "Cu",
-        "Zn",
-        "As",
-        "Cd",
-        "Pb",
-        "Se",
-        "Mo",
-        "Na",
-        "Al",
-        "Si",
-        "Ca",
-        "Fe",
-        "Hg",
-        "La",
-        "Mg",
-        "Mn",
-        "有效态Cd",
-    ]
+    fig, ax = plt.subplots()
+    ax.scatter(x, y, marker="o")
 
-    # 读取Excel数据
-    data = pd.read_excel(file_path, sheet_name=sheet_name)
+    ax.set_xlabel("Cd")
+    ax.set_ylabel("水稻Cd")
 
-    # 执行 PCA 并降到8个主成分
-    pca_result, loadings_df = img_pca_loading(data, params_name, n_components=8)
+    file_path = os.path.join(".", "Images", "img_Cd.png")
+    fig.savefig(file_path)
+    plt.close()
+
+    return file_path
+
+
+def plot_bar(data: pd.DataFrame, label: str):
+    fig, ax = plt.subplots()
+    ax.bar(x=data.index, height=data[label], color="skyblue")
+
+    ax.set_title(f"{label} 比较")
+
+    file_path = os.path.join(".", "Images", f"img_{label}_compare.png")
+    fig.savefig(file_path)
+    plt.close()
+
+    return file_path
