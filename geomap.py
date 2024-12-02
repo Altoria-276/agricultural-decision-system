@@ -131,7 +131,7 @@ class GeoMap:
         if self.grid:
             self.grid.set_focus()
 
-    def save_grid_image(self, label: str = "K"):
+    def save_grid_image(self, label: str = "Fe"):
         self.grid.set_value_matrix(label)
         fig, ax = plt.subplots()
         self.gdf.boundary.plot(ax=ax, color="black", linewidth=1)
@@ -162,6 +162,18 @@ class GeoMap:
         ax.axis("off")
 
         file_path = os.path.join(".", "Images", f"img_grid_{label}_grey.png")
+        fig.savefig(file_path)
+        plt.close()
+
+        return file_path
+
+    def save_grid_image_color(self, label: str = "Fe"):
+        self.grid.set_value_matrix(label)
+        fig, ax = plt.subplots()
+        ax.imshow(self.grid.value_matrix, origin="lower", alpha=0.5)
+        ax.axis("off")
+
+        file_path = os.path.join(".", "Images", f"img_grid_{label}_pure.png")
         fig.savefig(file_path)
         plt.close()
 

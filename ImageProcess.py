@@ -42,32 +42,39 @@ params_name = [
 
 
 def img_random_walk_process(
-    image_path: str,
-    image_grey_path: str,
-    low_threshold: float = 0.2,
-    high_threshold: float = 0.9,
+    image_path_color: str,
+    image_path_grey: str,
+    low_threshold_precent: float = 20,
+    high_threshold_precent: float = 80,
     beta: int = 10,
     min_size: int = 100,
     dpi: int = 400,
 ):
     """
     对图像进行随机游走分割、去除小区域以及骨架提取，并保存结果图像
-    :param image_path: str, 输入图像的路径。
-    :param low_threshold: float, 分割时的低阈值。
-    :param high_threshold: float, 分割时的高阈值。
+    :param image_path_color: str, 输入图像的路径。
+    :param image_path_grey: str, 输入灰度图的路径。
+    :param low_threshold_percent: float, 分割时的低阈值。
+    :param high_threshold_percent: float, 分割时的高阈值。
     :param beta: int, 随机游走算法的边缘敏感度参数。
     :param min_size: int, 去除小区域的最小面积。
-    :param dpi: int, 图像的DPI。
     :return: str, 保存图像的路径。
     """
     # 加载图像
-    img: np.ndarray = io.imread(image_grey_path, as_gray=True)
+    img_color: np.ndarray = io.imread(image_path_color)
+    img_grey: np.ndarray = io.imread(image_path_grey, as_gray=True)
+    img_grey = np.sqrt(1 - img_grey)
+
+    non_zero_elements = img_grey[img_grey != 0]
+
+    low_threshold = np.percentile(non_zero_elements, low_threshold_precent)
+    high_threshold = np.percentile(non_zero_elements, high_threshold_precent)
 
     # 随机游走分割
-    markers: np.ndarray = np.zeros_like(img)
-    markers[img > high_threshold] = 1
-    markers[img < low_threshold] = 2
-    seg_result = random_walker(img, markers, beta=beta, mode="bf")
+    markers: np.ndarray = np.zeros_like(img_grey)
+    markers[img_grey > high_threshold] = 1
+    markers[img_grey < low_threshold] = 2
+    seg_result = random_walker(img_grey, markers, beta=beta, mode="bf")
 
     # 区域处理，去除最小区域
     label_img = label(seg_result)
@@ -81,19 +88,19 @@ def img_random_walk_process(
     # 骨架化
     skeleton = morphology.skeletonize(prop_bw)
 
-    # 显示并保存结果
-    fig, ax = plt.subplots(dpi=dpi)
+    img_color[skeleton, :3] = [255, 0, 0]
 
-    k = 0.8
-    ax.imshow(img * k + np.double(skeleton) * (1 - k))
+    # 显示并保存结果
+    fig, ax = plt.subplots()
+
+    ax.imshow(img_color)
     ax.axis("off")
     ax.set_title("Processed (Skeleton Overlay)", fontsize=12)
 
-    # file_path = os.path.join(".", "Images", "img_random_walk.png")
-    file_path = image_path + "_random_walk.png"
+    file_path = os.path.join(".", "Images", "img_random_walk.png")
 
-    fig.savefig(file_path, dpi=dpi)
-    plt.close(fig)
+    fig.savefig(file_path)
+    plt.close()
 
     return file_path
 

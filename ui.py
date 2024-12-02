@@ -188,13 +188,14 @@ def ui():
             data = pd.read_excel(xlsx_files[file_name], sheet_name="原始数据")
             gmap = GeoMap(shp_files[map_name])
             gmap.load_dots_df(data, params_name=params_name)
-            kringing_path = kringing(data, params_name=params_name, num=50)
+            kringing_path = kringing(data, params_name=params_name, num=100)
             gmap.load_dots_df(pd.read_excel(kringing_path), params_name=params_name)
-            gmap.grid_paint(20, 20)
+            gmap.grid_paint(30, 30)
             pca_path = img_pca_loading(data, params_name, n)
-            img_grid_grey_path = gmap.save_grid_image_grey(label)
+            img_grid_path_grey = gmap.save_grid_image_grey(label)
+            img_grid_path_color = gmap.save_grid_image_color(label)
             img_grid_path = gmap.save_grid_image(label)
-            img_random_walk_path = img_random_walk_process(img_grid_path, img_grid_grey_path)
+            img_random_walk_path = img_random_walk_process(img_grid_path_color, img_grid_path_grey)
             return (
                 gmap.lon,
                 gmap.lat,

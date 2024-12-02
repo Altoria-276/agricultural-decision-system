@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import geopandas as gpd
 from pykrige.ok import OrdinaryKriging
+from pyproj import CRS
 from shapely.geometry import Polygon, MultiPolygon, Point
 
 from geomap import GeoMap
@@ -74,8 +75,7 @@ def kringing(df: pd.DataFrame, params_name: List[str] = params_name, num=100):
     geometry = [
         Point(xy) for xy in zip(np.tile(np.linspace(min_lon, max_lon, num), num), np.repeat(np.linspace(min_lat, max_lat, num), num))
     ]
-    crs = {"init": "epsg:4326"}  # EPSG:4326坐标系
-    interpolated_gdf = gpd.GeoDataFrame(pd.DataFrame(), crs=crs, geometry=geometry)
+    interpolated_gdf = gpd.GeoDataFrame(pd.DataFrame(), crs=CRS("EPSG:4326"), geometry=geometry)
 
     # 循环遍历每个属性进行插值
     for param in params_name:
