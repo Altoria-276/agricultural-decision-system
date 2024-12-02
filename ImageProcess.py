@@ -42,6 +42,7 @@ params_name = [
 
 def img_random_walk_process(
     image_path: str,
+    image_grey_path: str,
     low_threshold: float = 0.2,
     high_threshold: float = 0.9,
     beta: int = 10,
@@ -59,7 +60,7 @@ def img_random_walk_process(
     :return: str, 保存图像的路径。
     """
     # 加载图像
-    img: np.ndarray = img_as_float(io.imread(image_path))
+    img: np.ndarray = io.imread(image_grey_path, as_gray=True)
 
     # 随机游走分割
     markers: np.ndarray = np.zeros_like(img)
@@ -177,42 +178,3 @@ def img_line_percent(data: pd.DataFrame):
     plt.close()
 
     return file_path
-
-
-if __name__ == "__main__":
-    image_path = "Images/img2.png"  # 文件可更换
-    file_path = "Images/processed_images/img2.png"  # 路径可更换
-    result = img_random_walk_process(image_path, file_path)
-
-    # 示例调用
-    file_path = "数据/水稻点位148.xlsx"  # Excel文件路径
-    sheet_name = "原始数据"  # Excel表单名称
-    params_name = [
-        "P",
-        "K",
-        "N",
-        "Cr",
-        "Cu",
-        "Zn",
-        "As",
-        "Cd",
-        "Pb",
-        "Se",
-        "Mo",
-        "Na",
-        "Al",
-        "Si",
-        "Ca",
-        "Fe",
-        "Hg",
-        "La",
-        "Mg",
-        "Mn",
-        "有效态Cd",
-    ]
-
-    # 读取Excel数据
-    data = pd.read_excel(file_path, sheet_name=sheet_name)
-
-    # 执行 PCA 并降到8个主成分
-    pca_result, loadings_df = img_pca_loading(data, params_name, n_components=8)

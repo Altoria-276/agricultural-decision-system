@@ -155,13 +155,13 @@ class GeoMap:
 
         return file_path
 
-    def save_grid_image_pure(self, label: str = "K"):
+    def save_grid_image_grey(self, label: str = "Fe"):
         self.grid.set_value_matrix(label)
         fig, ax = plt.subplots()
-        ax.imshow(self.grid.value_matrix, origin="lower", alpha=0.5)
+        ax.imshow(self.grid.value_matrix, origin="lower", cmap="Greys")
         ax.axis("off")
 
-        file_path = os.path.join(".", "Images", f"img_grid_{label}_pure.png")
+        file_path = os.path.join(".", "Images", f"img_grid_{label}_grey.png")
         fig.savefig(file_path)
         plt.close()
 
@@ -266,6 +266,7 @@ class Grid:
                     if self.cell_matrix[row][col].focus_dot and self.cell_matrix[row][col].is_valid
                     else np.nan
                 )
+        return self.value_matrix
 
     def conv_interpolation(self):
         update = True

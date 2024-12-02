@@ -23,7 +23,15 @@ matplotlib.rcParams["axes.unicode_minus"] = False
 
 
 class RegressionModel:
-    def __init__(self, model: str, data: pd.DataFrame, feature: List[str], target: str, test_size: float = 0.2, random_state: int = 42):
+    def __init__(
+        self,
+        model: str,
+        data: pd.DataFrame,
+        feature: List[str],
+        target: str,
+        test_size: float = 0.2,
+        random_state: int | None = None,
+    ):
         self.data = data
         self.feature = feature
         self.target = target

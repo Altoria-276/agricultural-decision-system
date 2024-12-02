@@ -119,7 +119,7 @@ def run():
     grid = gmap.grid
     grid.set_focus()
 
-    gmap.save_grid_image_pure("Fe")
+    gmap.save_grid_image_grey("Fe")
 
 
 if __name__ == "__main__":

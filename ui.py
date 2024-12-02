@@ -118,6 +118,16 @@ def ui():
                 p4_prediction_img = gr.Image(label="预测曲线")
                 p4_shiki_img = gr.Image(label="shiki")
             p4_threshold_output = gr.Textbox(label="安全阈值计算")
+        with gr.Tab("区域分布预测"):
+            gr.Markdown("# 土壤重金属活化主因及安全阈值测算")
+            with gr.Row(equal_height=True):
+                p5_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), label="数据文件")
+                p5_sheet_name_input = gr.Dropdown(choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True)
+                p5_model_input = gr.Dropdown(choices=get_model_choices(), label="选择拟合模型")
+            with gr.Row(equal_height=True):
+                p5_feature_input = gr.Dropdown(choices=[], label="自变量特征选择", multiselect=True, interactive=True, scale=3)
+                p5_target_input = gr.Dropdown(choices=[], label="因变量特征选择", interactive=True, scale=1)
+                p5_run_button = gr.Button(value="运行", scale=1)
 
         # page1
         p1_file_name_input.change(
@@ -182,13 +192,14 @@ def ui():
             gmap.load_dots_df(pd.read_excel(kringing_path), params_name=params_name)
             gmap.grid_paint(20, 20)
             pca_path = img_pca_loading(data, params_name, n)
-            img_grid_pure_path = gmap.save_grid_image_pure(label)
-            img_random_walk_path = img_random_walk_process(img_grid_pure_path)
+            img_grid_grey_path = gmap.save_grid_image_grey(label)
+            img_grid_path = gmap.save_grid_image(label)
+            img_random_walk_path = img_random_walk_process(img_grid_path, img_grid_grey_path)
             return (
                 gmap.lon,
                 gmap.lat,
                 pca_path,
-                img_grid_pure_path,
+                img_grid_path,
                 img_random_walk_path,
             )
 
