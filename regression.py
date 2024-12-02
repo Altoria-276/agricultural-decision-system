@@ -34,6 +34,7 @@ class RegressionModel:
         self.scaler = StandardScaler().set_output(transform="pandas")
         self.model = self.__load_model(model)
         self.is_trained = False
+        self.shap_values = None
 
     def __load_model(self, model: str):
         if model == "Ridge":
@@ -56,6 +57,8 @@ class RegressionModel:
         返回：
         - 包含 MAE & RMSE & R² 的字典。
         """
+        self.shap_values = None
+
         # 将数据集划分为训练集和测试集
         X_train, X_test, y_train, y_test = train_test_split(self.X, self.y, test_size=self.test_size, random_state=self.random_state)
 
@@ -240,13 +243,14 @@ class RegressionModel:
         """
         绘制基于 SHAP 值的特征重要性图。
         """
-        X_scaled = self.scaler.transform(self.X)
-        explainer = shap.Explainer(self.model.predict, X_scaled)
-        shap_values = explainer(X_scaled)
+        if not self.shap_values:
+            X_scaled = self.scaler.transform(self.X)
+            explainer = shap.Explainer(self.model.predict, X_scaled)
+            self.shap_values = explainer(X_scaled)
 
         fig, ax = plt.subplots(figsize=(12, 10))
 
-        shap.summary_plot(shap_values, X_scaled, plot_type="bar", show=False)
+        shap.summary_plot(self.shap_values, X_scaled, plot_type="bar", show=False)
         ax.set_title("基于 SHAP 的特征重要性分析")
         ax.set_xlabel("特征重要性")
         ax.set_ylabel("特征")
@@ -255,6 +259,19 @@ class RegressionModel:
         fig.savefig(img_path)
         plt.close()
         return img_path
+
+    def get_top_feature(self):
+        if not self.shap_values:
+            X_scaled = self.scaler.transform(self.X)
+            explainer = shap.Explainer(self.model.predict, X_scaled)
+            self.shap_values = explainer(X_scaled)
+
+        mean_abs_shap = np.abs(self.shap_values.values).mean(0)  # 对所有样本取平均
+        feature_importance = list(zip(self.X.columns, mean_abs_shap, self.X.mean()))
+        sorted_feature_importance = sorted(feature_importance, key=lambda x: x[1], reverse=True)
+        top_5_features = [[feature[0], feature[2]] for feature in sorted_feature_importance[:5]]
+
+        return top_5_features
 
     def plot_hessian_matrix(self):
         """
