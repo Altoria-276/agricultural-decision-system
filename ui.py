@@ -20,8 +20,7 @@ from regression import RegressionModel
 from utils import get_model_choices, get_shp_files, get_xlsx_files
 
 
-def ui():
-
+def ui(share=False):
     shp_files = get_shp_files()
     xlsx_files = get_xlsx_files()
 
@@ -495,8 +494,4 @@ def ui():
             ],
         )
 
-    ui.launch(share=False)
-
-
-if __name__ == "__main__":
-    ui()
+    ui.launch(share=share)
