@@ -28,6 +28,8 @@ def ui(share=False):
 
     with gr.Blocks(custom_theme) as ui:
         gr.Markdown("## “污染源—土壤—活化—作物”全链条风险预警模拟器")
+        with gr.Tab("开始界面"):
+            gr.Image(label="欢迎")
         with gr.Tab("影响分析"):
             gr.Markdown("# 现存污染源贡献量变化影响分析")
             with gr.Row(equal_height=True):
@@ -66,8 +68,11 @@ def ui(share=False):
                             p2_label_input = gr.Dropdown(choices=[], label="污染源特征选择", interactive=True, scale=1)
                             p2_n_pca_input = gr.Dropdown(choices=[0], value=0, label="主因数量选择")
                 with gr.Column(scale=1):
-                    p2_lon = gr.Textbox(label="东经")
-                    p2_lat = gr.Textbox(label="北纬")
+                    p2_lon = gr.Textbox(label="地块东经")
+                    p2_lat = gr.Textbox(label="地块北纬")
+                    p2_row = gr.Textbox(label="栅格行数", value=20)
+                    p2_col = gr.Textbox(label="栅格列数", value=20)
+
                 p2_run_button = gr.Button(value="运行", scale=1)
 
             with gr.Row(equal_height=True):
@@ -212,13 +217,13 @@ def ui(share=False):
             outputs=[p2_label_input, p2_n_pca_input],
         )
 
-        def p2_run_click(file_name: str, map_name: str, params_name: List[str], label: str, n: int):
+        def p2_run_click(file_name: str, map_name: str, params_name: List[str], label: str, n: int, row: int, col: int):
             data = pd.read_excel(xlsx_files[file_name], sheet_name="原始数据")
             gmap = GeoMap(shp_files[map_name])
             gmap.load_dots_df(data, params_name=params_name)
             kringing_path = kringing(data, params_name=params_name, num=100)
             gmap.load_dots_df(pd.read_excel(kringing_path), params_name=params_name)
-            gmap.grid_paint(30, 30)
+            gmap.grid_paint(int(row), int(col))
             pca_path = img_pca_loading(data, params_name, n)
             img_grid_path_grey = gmap.save_grid_image_grey(label)
             img_grid_path_color = gmap.save_grid_image_color(label)
@@ -240,6 +245,8 @@ def ui(share=False):
                 p2_params_input,
                 p2_label_input,
                 p2_n_pca_input,
+                p2_row,
+                p2_col,
             ],
             outputs=[p2_lon, p2_lat, p2_pca_img, p2_grid_img, p2_path_img],
         )
