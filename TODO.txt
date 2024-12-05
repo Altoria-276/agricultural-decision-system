@@ -11,12 +11,49 @@ p1
     左侧因果图，写死
     指定变量，设置 4 个挡位 0% 5% 10% 20%，柱状图输出差值
 p2
+    栅格 一个值
     调整地图颜色比例尺 0-80%
 p3
     选定基准年 & 指定年份
     热力图输出点位，值为变化百分比
-    指定年插值 + 预测年份 * 平均变化速率 -> 绘制栅格图
+    指定年插值 + 预测年份 * 平均变化速率 -> 栅格图插值 0.2线
 p4
     右侧超级麻烦图
+    散点图 水稻Cd 0.2 Cd 算出阈值
 p5
     Cd 图标明阈值
+
+计算 F1 Recall 使用真实值
+
+# 定义模型函数
+def func(x, a, b, c):
+    return a * np.exp(b * x) + c
+
+# 准备数据
+# 用于拟合
+x_data = np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5]) # 真实统计结果
+y_data = np.array([0.01, 0.07, 0.20, 0.59])
+
+# 用于求阈值
+x2_data = np.array([0.0,0.01,0.02,...,10]) # 画图 np.linspace
+y2_data = func(x2_data)
+
+y2 0.95 -> x2 = 4.5 阈值
+
+# 调用curve_fit进行拟合
+popt, pcov = curve_fit(func, x_data, y_data)
+
+# popt contains the optimal values for the parameters,
+# while pcov is the estimated covariance of popt.
+print("Optimal parameters: ", popt)
+print("Covariance of parameters: ", pcov)
+
+# 使用拟合参数绘图
+x_fit = np.linspace(min(x_data), max(x_data), 100)
+y_fit = func(x_fit, *popt)
+
+plt.figure()
+plt.scatter(x_data, y_data, label="Data")
+plt.plot(x_fit, y_fit, 'r-', label="Fitted function")
+plt.legend()
+plt.show()
