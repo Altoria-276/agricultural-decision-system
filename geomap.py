@@ -264,7 +264,7 @@ class GeoMap:
         fig, ax = plt.subplots()
 
         scatter = plt.scatter(df["东经"], df["北纬"], c=df["ratio"], cmap="viridis", alpha=0.6)
-        ax.colorbar(scatter, label=f"增加百分比值")
+        fig.colorbar(scatter, label=f"增加百分比值", ax=ax)
 
         bounds = self.outline.bounds
         bounds = [bounds[0], bounds[2], bounds[1], bounds[3]]
