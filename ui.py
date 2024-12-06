@@ -1,3 +1,5 @@
+import os
+import random
 from re import L
 from typing import List
 import gradio as gr
@@ -21,15 +23,22 @@ from utils import get_model_choices, get_shp_files, get_xlsx_files
 
 
 def ui(share=False):
-    shp_files = get_shp_files()
-    xlsx_files = get_xlsx_files()
+    """
+    程序的主界面，包含了所有的交互式组件，以及组件之间的交互逻辑。
+
+    Args:
+        share (bool, optional): 是否生成分享链接. Defaults to False.
+
+    """
+    shp_files: dict[str, str] = get_shp_files()
+    xlsx_files: dict[str, str] = get_xlsx_files()
 
     custom_theme = gr.themes.Default().set(block_border_width="5px")
 
-    with gr.Blocks(custom_theme) as ui:
+    with gr.Blocks(theme=custom_theme) as ui:
         gr.Markdown("## “污染源—土壤—活化—作物”全链条风险预警模拟器")
         with gr.Tab("开始界面"):
-            gr.Image(label="欢迎")
+            gr.Image(label="欢迎", value=os.path.join(".", "Images", f"img{random.randint(1, 4)}.png"))
         with gr.Tab("影响分析"):
             gr.Markdown("# 现存污染源贡献量变化影响分析")
             with gr.Row(equal_height=True):
@@ -88,6 +97,7 @@ def ui(share=False):
 
             gr.Markdown("累积趋势分析")
             with gr.Row(equal_height=True):
+                p3_time_basic_select = gr.Dropdown([], label="基准年份")
                 p3_time_select = gr.Dropdown([], label="指定年份")
                 p3_run_button = gr.Button("运行")
             with gr.Row(equal_height=True):
@@ -225,8 +235,8 @@ def ui(share=False):
             gmap.load_dots_df(pd.read_excel(kringing_path), params_name=params_name)
             gmap.grid_paint(int(row), int(col))
             pca_path = img_pca_loading(data, params_name, n)
-            img_grid_path_grey = gmap.save_grid_image_grey(label)
-            img_grid_path_color = gmap.save_grid_image_color(label)
+            img_grid_path_grey = gmap.save_grid_image_simple(label, color=False)
+            img_grid_path_color = gmap.save_grid_image_simple(label, color=True)
             img_grid_path = gmap.save_grid_image(label)
             img_random_walk_path = img_random_walk_process(img_grid_path_color, img_grid_path_grey)
             return (
@@ -257,19 +267,27 @@ def ui(share=False):
             data = pd.read_excel(xlsx_files[file_name])
             return gr.update(choices=[item for item in data.columns if item.endswith("年")])
 
-        p3_file_name_input.change(fn=p3_file_change, inputs=p3_file_name_input, outputs=p3_time_select)
+        p3_file_name_input.change(fn=p3_file_change, inputs=p3_file_name_input, outputs=p3_time_basic_select)
 
-        def p3_run_click(file_name: str, map_name: str, label: str):
+        def p3_time_basic_select_change(file_name: str, basic_time: str):
+            data = pd.read_excel(xlsx_files[file_name])
+            return gr.update(choices=[item for item in data.columns if item.endswith("年") and item > basic_time])
+
+        p3_time_basic_select.change(
+            fn=p3_time_basic_select_change, inputs=[p3_file_name_input, p3_time_basic_select], outputs=p3_time_select
+        )
+
+        def p3_run_click(file_name: str, map_name: str, label_basic: str, label: str):
             data = pd.read_excel(xlsx_files[file_name])
             gmap = GeoMap(shp_files[map_name])
             gmap.load_dots_df(
                 data,
-                params_name=list(data.columns[3:]),
+                params_name=[label_basic, label],
             )
-            img_dot_path = gmap.save_dot_image(label)
-            img_pie_path = img_pie_percent(data, label)
+            img_dot_path = gmap.save_dot_image(label_basic, label)
+            img_pie_path = img_pie_percent(data, label_basic, label)
             img_line_path = img_line_percent(data)
-            average_speed = get_average_speed(data)
+            average_speed = get_average_speed(data, label_basic, label)
 
             return img_dot_path, img_pie_path, img_line_path, average_speed
 
@@ -278,6 +296,7 @@ def ui(share=False):
             inputs=[
                 p3_file_name_input,
                 p3_map_name_input,
+                p3_time_basic_select,
                 p3_time_select,
             ],
             outputs=[

@@ -98,7 +98,7 @@ def kringing(df: pd.DataFrame, params_name: List[str] = params_name, num=100):
     return f"{outpath}.xlsx"
 
 
-def get_average_speed(data: pd.DataFrame):
-    se = data.mean()[3:]
-    res = (se["2024年"] - se["2008年"]) / (2024 - 2008)
+def get_average_speed(data: pd.DataFrame, label_basic: str = "2008年", label: str = "2012年"):
+    se = data[[label_basic, label]].mean()
+    res = (se[label] - se[label_basic]) / (int(label[:-1]) - int(label_basic[:-1]))
     return res

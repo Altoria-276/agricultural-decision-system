@@ -18,6 +18,8 @@ import os
 from sklearn.svm import SVR
 from sklearn.tree import DecisionTreeRegressor
 
+from utils import get_temp_image_path
+
 matplotlib.rcParams["font.sans-serif"] = ["SimHei"]
 matplotlib.rcParams["axes.unicode_minus"] = False
 
@@ -32,6 +34,17 @@ class RegressionModel:
         test_size: float = 0.2,
         random_state: int | None = None,
     ):
+        """
+        初始化回归模型。
+
+        Args:
+            model (str): 模型类型字符串
+            data (pd.DataFrame): 数据集
+            feature (List[str]): 特征列表
+            target (str): 目标特征
+            test_size (float, optional): 测试集占数据集比例. Defaults to 0.2.
+            random_state (int | None, optional): 随机数种子. Defaults to None.
+        """
         self.data = data
         self.feature = feature
         self.target = target
@@ -164,7 +177,7 @@ class RegressionModel:
         ax.grid(alpha=0.5)
         ax.legend(fontsize=12)
 
-        file_path = os.path.join(".", "Images", "img_prediction_curve.png")
+        file_path = os.path.join(get_temp_image_path(), "img_prediction_curve.png")
         fig.savefig(file_path)
         plt.close()
 
@@ -208,7 +221,7 @@ class RegressionModel:
         ax.set_title("基于系数的特征重要性")
         ax.axis("equal")
 
-        img_path = os.path.join(".", "Images", "coefficients.png")
+        img_path = os.path.join(get_temp_image_path(), "coefficients.png")
         fig.savefig(img_path)
         plt.close()
         return img_path
@@ -242,7 +255,7 @@ class RegressionModel:
 
         fig.tight_layout()
 
-        img_path = os.path.join(".", "Images", "fitting_effect.png")
+        img_path = os.path.join(get_temp_image_path(), "fitting_effect.png")
         fig.savefig(img_path)
         plt.close()
         return img_path
@@ -263,12 +276,15 @@ class RegressionModel:
         ax.set_xlabel("特征重要性")
         ax.set_ylabel("特征")
 
-        img_path = os.path.join(".", "Images", "shap_importance.png")
+        img_path = os.path.join(get_temp_image_path(), "shap_importance.png")
         fig.savefig(img_path)
         plt.close()
         return img_path
 
     def get_top_feature(self):
+        """
+        获取前 5 个最重要的特征。
+        """
         if not self.shap_values:
             X_scaled = self.scaler.transform(self.X)
             explainer = shap.Explainer(self.model.predict, X_scaled)
@@ -277,9 +293,9 @@ class RegressionModel:
         mean_abs_shap = np.abs(self.shap_values.values).mean(0)  # 对所有样本取平均
         feature_importance = list(zip(self.X.columns, mean_abs_shap, self.X.mean()))
         sorted_feature_importance = sorted(feature_importance, key=lambda x: x[1], reverse=True)
-        top_5_features = [[feature[0], feature[2]] for feature in sorted_feature_importance[:5]]
+        top_6_features = [[feature[0], feature[2]] for feature in sorted_feature_importance[:6]]
 
-        return top_5_features
+        return top_6_features
 
     def plot_hessian_matrix(self):
         """
@@ -351,7 +367,7 @@ class RegressionModel:
         ax.grid(False)
         fig.tight_layout()
 
-        img_path = os.path.join(".", "Images", "hessian.png")
+        img_path = os.path.join(get_temp_image_path(), "hessian.png")
         fig.savefig(img_path)
         plt.close()
         return img_path

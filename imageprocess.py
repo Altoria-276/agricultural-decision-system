@@ -11,6 +11,7 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import scipy.stats as stats
 import seaborn as sns
+from utils import get_temp_image_path
 
 plt.rcParams["font.sans-serif"] = ["SimHei"]  # 用来正常显示中文标签
 plt.rcParams["axes.unicode_minus"] = False  # 用来正常显示负号
@@ -95,9 +96,9 @@ def img_random_walk_process(
 
     ax.imshow(img_color)
     ax.axis("off")
-    ax.set_title("Processed (Skeleton Overlay)", fontsize=12)
+    ax.set_title("污染路径图", fontsize=12)
 
-    file_path = os.path.join(".", "Images", "img_random_walk.png")
+    file_path = os.path.join(get_temp_image_path(), "img_random_walk.png")
 
     fig.savefig(file_path)
     plt.close()
@@ -150,7 +151,7 @@ def img_pca_loading(data: pd.DataFrame, params_name: List[str] = params_name, n_
             ax.text(j, value, f"{value:.2f}", ha="center", va="bottom" if value > 0 else "top", fontsize=9)
 
     # 保存图像
-    file_path = os.path.join(".", "Images", "Img_pca_loading_components.png")
+    file_path = os.path.join(get_temp_image_path(), "Img_pca_loading_components.png")
     fig.tight_layout()
     fig.savefig(file_path)
     plt.close()
@@ -158,14 +159,14 @@ def img_pca_loading(data: pd.DataFrame, params_name: List[str] = params_name, n_
     return file_path
 
 
-def img_pie_percent(data: pd.DataFrame, label: str = "2012年"):
-    offset = data[label] - data["基准"]
+def img_pie_percent(data: pd.DataFrame, label_basic: str = "2008年", label: str = "2012年"):
+    percent = (data[label] - data[label_basic]) / data[label_basic]
     # 定义区间
     bins = [float("-inf"), 0, 0.01, 0.05, 0.1, 0.2, float("inf")]
     labels = ["<0%", "0-1%", "1-5%", "5-10%", "10-20%", ">20%"]
 
     # 将数据分类到区间
-    categorized_data = pd.cut(offset, bins=bins, labels=labels, include_lowest=True)
+    categorized_data = pd.cut(percent, bins=bins, labels=labels, include_lowest=True)
 
     # 计算每个区间的占比
     value_counts = categorized_data.value_counts(normalize=True) * 100
@@ -175,7 +176,7 @@ def img_pie_percent(data: pd.DataFrame, label: str = "2012年"):
     # 绘制饼状图
     ax.pie(value_counts, labels=value_counts.index, autopct="%1.1f%%", startangle=140)
     ax.set_title("Percentage Distribution of Data")
-    file_path = os.path.join(".", "Images", "img_pie_percent.png")
+    file_path = os.path.join(get_temp_image_path(), "img_pie_percent.png")
     fig.savefig(file_path)
     plt.close()
 
@@ -194,7 +195,7 @@ def img_line_percent(data: pd.DataFrame):
     ax.set_xlabel("年份")
     ax.set_ylabel("百分比变化(%)")
 
-    file_path = os.path.join(".", "Images", "img_line_percent.png")
+    file_path = os.path.join(get_temp_image_path(), "img_line_percent.png")
     fig.savefig(file_path)
     plt.close()
 
@@ -242,7 +243,7 @@ def plot_anova(data, params_name):
     plt.xticks(rotation=45, ha="right")
 
     # 保存图片
-    file_path = os.path.join(".", "Images", "img_anova_p_values.png")
+    file_path = os.path.join(get_temp_image_path(), "img_anova_p_values.png")
 
     fig.tight_layout()
     fig.savefig(file_path)
@@ -272,7 +273,7 @@ def plot_correlation_matrix(data, params_name):
     ax.set_title("Correlation Matrix of Factors")
 
     # 保存图片
-    file_path = os.path.join(".", "Images", "img_correlation_matrix.png")
+    file_path = os.path.join(get_temp_image_path(), "img_correlation_matrix.png")
 
     fig.tight_layout()
     fig.savefig(file_path)
@@ -291,7 +292,7 @@ def plot_Cd(data):
     ax.set_xlabel("Cd")
     ax.set_ylabel("水稻Cd")
 
-    file_path = os.path.join(".", "Images", "img_Cd.png")
+    file_path = os.path.join(get_temp_image_path(), "img_Cd.png")
     fig.savefig(file_path)
     plt.close()
 
@@ -304,7 +305,7 @@ def plot_bar(data: pd.DataFrame, label: str):
 
     ax.set_title(f"{label} 比较")
 
-    file_path = os.path.join(".", "Images", f"img_{label}_compare.png")
+    file_path = os.path.join(get_temp_image_path(), f"img_{label}_compare.png")
     fig.savefig(file_path)
     plt.close()
 

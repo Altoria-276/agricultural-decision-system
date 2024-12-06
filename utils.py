@@ -4,6 +4,19 @@ from typing import List
 
 
 def get_files(dict_path: str, extension: str):
+    """
+    获取指定目录下的所有指定扩展名的文件
+
+    Args:
+        dict_path (str): 目录路径
+        extension (str): 扩展名
+
+    Raises:
+        ValueError: 指定的目录不存在，请检查路径是否正确！
+
+    Returns:
+        dict: 文件路径字典
+    """
     # 检查目录是否存在
     if not os.path.exists(dict_path):
         raise ValueError("指定的目录不存在，请检查路径是否正确！")
@@ -32,3 +45,7 @@ def get_model_choices():
         "DecisionTree",
         "RandomForest",
     ]
+
+
+def get_temp_image_path():
+    return os.path.join(".", "Images", "Temp")
