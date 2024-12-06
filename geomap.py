@@ -1,5 +1,6 @@
 import os
 from typing import List, Optional
+from matplotlib.colors import TwoSlopeNorm
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -132,6 +133,17 @@ class GeoMap:
             self.grid.set_focus()
 
     def save_grid_image(self, label: str = "Fe"):
+        """
+        保存指定元素的栅格图像
+
+        Args:
+            label (str): 要绘制栅格图的元素标签. Defaults to "Fe".
+
+        Returns:
+            file_path (str): 返回的图片文件路径
+        """
+        if self.grid is None:
+            raise ValueError("栅格没有初始化,请调用 grid_paint() 初始化栅格.")
         self.grid.set_value_matrix(label)
         fig, ax = plt.subplots()
         self.gdf.boundary.plot(ax=ax, color="black", linewidth=1)
@@ -139,7 +151,17 @@ class GeoMap:
         bounds = self.outline.bounds
         bounds = [bounds[0], bounds[2], bounds[1], bounds[3]]
 
-        img = ax.imshow(self.grid.value_matrix, extent=bounds, origin="lower", alpha=0.5)
+        # 获取值的最小值和最大值
+        vmin = np.nanmin(self.grid.value_matrix)
+        vmax = np.nanmax(self.grid.value_matrix)
+
+        # 计算80%部分的值
+        vcenter = np.nanpercentile(self.grid.value_matrix, 80)
+
+        # 使用 TwoSlopeNorm 进行颜色归一化
+        norm = TwoSlopeNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
+
+        img = ax.imshow(self.grid.value_matrix, extent=bounds, origin="lower", alpha=0.5, norm=norm)
 
         ax.set_xlim(bounds[:2])
         ax.set_ylim(bounds[2:])
