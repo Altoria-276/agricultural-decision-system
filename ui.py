@@ -107,6 +107,8 @@ def ui(share=False):
                     p3_time_select = gr.Dropdown([], label="指定年份")
                     p3_run_button = gr.Button("运行")
                 with gr.Row(equal_height=True):
+                    p3_speed_output = gr.Textbox(label="年均累计速率(mg/(kg·y)):")
+                with gr.Row(equal_height=True):
                     p3_dot_img = gr.Image(label="监测点位累积幅度空间分布图")
                     with gr.Column():
                         p3_pie_img = gr.Image(label="监测点位累积幅度占比统计")
@@ -114,12 +116,11 @@ def ui(share=False):
 
                 gr.Markdown("超标风险区分析")
                 with gr.Row(equal_height=True):
-                    gr.Dropdown(["2020"], label="预测年份")
-                    gr.Button("计算")
+                    p3_time_predict = gr.Textbox(value=20, label="预测年份")
+                    p3_row_col = gr.Textbox(value=20, label="栅格行数&列数")
+                    p3_run_button_2 = gr.Button("计算")
                 with gr.Row(equal_height=True):
-                    p3_speed_output = gr.Textbox(label="年均累计速率(mg/(kg·y)):")
-                with gr.Row(equal_height=True):
-                    gr.Image(label="未来超标风险区空间分布图")
+                    p3_risk_img = gr.Image(label="未来超标风险区空间分布图")
 
             with gr.Tab("主因和阈值计算", id="p4"):
                 gr.Markdown("# 土壤重金属活化主因及安全阈值测算")
@@ -301,12 +302,15 @@ def ui(share=False):
                 data,
                 params_name=[label_basic, label],
             )
+
             img_dot_path = gmap.save_dot_image(label_basic, label)
             img_pie_path = img_pie_percent(data, label_basic, label)
             img_line_path = img_line_percent(data, start_time=label_basic, end_time=label)
             average_speed = get_average_speed(data, label_basic, label)
 
-            return img_dot_path, img_pie_path, img_line_path, average_speed
+            return img_dot_path, img_pie_path, img_line_path, average_speed, gmap
+
+        p3_params = gr.State()
 
         p3_run_button.click(
             fn=p3_run_click,
@@ -321,7 +325,25 @@ def ui(share=False):
                 p3_pie_img,
                 p3_line_img,
                 p3_speed_output,
+                p3_params,
             ],
+        )
+
+        def p3_run_click_2(gmap: GeoMap, row_col: int, label: str, speed: float, year: int):
+            gmap.grid_paint(int(row_col), int(row_col))
+            img_risk_path = gmap.save_risk_image(label, float(speed), int(year))
+            return img_risk_path
+
+        p3_run_button_2.click(
+            fn=p3_run_click_2,
+            inputs=[
+                p3_params,
+                p3_row_col,
+                p3_time_select,
+                p3_speed_output,
+                p3_time_predict,
+            ],
+            outputs=p3_risk_img,
         )
 
         # page4

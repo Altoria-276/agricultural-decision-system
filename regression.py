@@ -293,9 +293,9 @@ class RegressionModel:
         mean_abs_shap = np.abs(self.shap_values.values).mean(0)  # 对所有样本取平均
         feature_importance = list(zip(self.X.columns, mean_abs_shap, self.X.mean()))
         sorted_feature_importance = sorted(feature_importance, key=lambda x: x[1], reverse=True)
-        top_6_features = [[feature[0], feature[2]] for feature in sorted_feature_importance[:6]]
+        top_5_features = [[feature[0], feature[2]] for feature in sorted_feature_importance[:6] if feature[0] != "Cd"][:5]
 
-        return top_6_features
+        return top_5_features
 
     def plot_hessian_matrix(self):
         """
