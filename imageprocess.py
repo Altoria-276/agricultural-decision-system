@@ -175,7 +175,7 @@ def img_pie_percent(data: pd.DataFrame, label_basic: str = "2008年", label: str
 
     # 绘制饼状图
     ax.pie(value_counts, labels=value_counts.index, autopct="%1.1f%%", startangle=140)
-    ax.set_title("Percentage Distribution of Data")
+    ax.set_title("数据百分比变化占比")
     file_path = os.path.join(get_temp_image_path(), "img_pie_percent.png")
     fig.savefig(file_path)
     plt.close()

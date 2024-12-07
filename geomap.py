@@ -1,6 +1,6 @@
 import os
 from typing import List, Optional
-from matplotlib.colors import TwoSlopeNorm
+from matplotlib.colors import ListedColormap, TwoSlopeNorm
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -161,6 +161,45 @@ class GeoMap:
 
         if self.grid:
             self.grid.set_focus()
+
+    def save_risk_image(self, label: str, speed: float = 0, year: int = 0) -> str:
+        """
+        保存风险区域图像
+
+        Args:
+            speed (float): 增长速率
+            year (int): 预测年份
+
+        Raises:
+            ValueError: 栅格没有初始化
+
+        Returns:
+            str: 返回的图片文件路径
+        """
+        if self.grid is None:
+            raise ValueError("栅格没有初始化,请调用 grid_paint() 初始化栅格.")
+        self.grid.set_value_matrix(label)
+        bool_matrix = self.grid.value_matrix + speed * year > 0.2
+
+        fig, ax = plt.subplots()
+        self.gdf.boundary.plot(ax=ax, color="black", linewidth=1)
+
+        bounds = self.outline.bounds
+        bounds = [bounds[0], bounds[2], bounds[1], bounds[3]]
+
+        # 自定义颜色映射，True 区域为红色，False 区域为透明
+        cmap = ListedColormap(["none", "red"])
+
+        img = ax.imshow(bool_matrix, extent=bounds, origin="lower", alpha=0.5, cmap=cmap)
+
+        ax.set_xlim(bounds[:2])
+        ax.set_ylim(bounds[2:])
+
+        file_path = os.path.join(get_temp_image_path(), "img_risk_area.png")
+        fig.savefig(file_path)
+        plt.close()
+
+        return file_path
 
     def save_grid_image(self, label: str = "Fe"):
         """
