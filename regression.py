@@ -14,6 +14,7 @@ from matplotlib import rcParams
 import matplotlib
 import seaborn as sns
 import os
+from scipy.optimize import curve_fit
 
 from sklearn.svm import SVR
 from sklearn.tree import DecisionTreeRegressor
@@ -371,3 +372,77 @@ class RegressionModel:
         fig.savefig(img_path)
         plt.close()
         return img_path
+
+    # TODO 将self.X替换成固定值
+    def plot_overrate(self, threshold_range=None, y_threshold=0.2):
+        """
+        绘制超标率与阈值的关系，并拟合曲线
+        Args:
+            threshold_range (tuple): 阈值范围，默认使用自定义范围。
+            y_threshold (float): 第二轮筛选y值的阈值，默认为0.2。
+        """
+
+        # 如果没有提供阈值范围，则自动生成一个合理的范围
+        if threshold_range is None:
+            threshold_range = (self.data['Cd'].min(), self.data['Cd'].max())
+
+        # 生成多个阈值并计算对应的超标率
+        thresholds = np.linspace(threshold_range[0], threshold_range[1], 50)
+        overrate = []
+
+        # 获取用于拟合的真实数据 x_data 和 y_data
+        for threshold in thresholds:
+            # 第一轮筛选：Cd > threshold
+            selected_data = self.data[self.data['Cd'] > threshold]
+
+            # 第二轮筛选：预测值y > y_threshold
+            predict_y = self.model.predict(selected_data[self.feature])
+            selected_data['predicted_y'] = predict_y
+            overrate_samples = selected_data[selected_data['predicted_y'] > y_threshold]
+
+            # 计算超标率
+            overrate.append(len(overrate_samples) / len(self.data))
+
+        # 用于拟合的真实数据
+        x_data = thresholds
+        y_data = overrate
+
+        # 拟合曲线函数
+        def fit_func(x, theta, lambda_val):
+            return (1 / (1 + x ** lambda_val)) ** theta
+
+        # 使用curve_fit进行拟合，获得λ和θ的最优值
+        popt, pcov = curve_fit(fit_func, x_data, y_data, p0=[1, 1])
+
+        # 打印拟合的参数
+        print("Optimal parameters (theta, lambda): ", popt)
+        print("Covariance of parameters: ", pcov)
+
+        # 使用拟合参数绘图
+        x_fit = np.linspace(min(x_data), max(x_data), 100)
+        y_fit = fit_func(x_fit, *popt)
+
+        # 绘制超标率与阈值的关系图
+        plt.figure(figsize=(8, 6))
+        plt.scatter(x_data, y_data, label='超标率', color='blue')
+        plt.plot(x_fit, y_fit, 'r-', label=f'拟合曲线: f(x) = (1/(1+x^{popt[1]}))^{popt[0]}', linestyle='--')
+        plt.xlabel('Cd阈值')
+        plt.ylabel('超标率')
+        plt.title('超标率与Cd阈值的关系')
+        plt.legend()
+        plt.grid(True)
+
+        # 用于绘制拟合曲线的阈值范围
+        x2_data = np.linspace(0, 10, 100)
+        y2_data = fit_func(x2_data, *popt)
+
+        plt.figure(figsize=(8, 6))
+        plt.plot(x2_data, y2_data, 'g-', label='拟合曲线用于绘图')
+        plt.xlabel('Cd阈值范围')
+        plt.ylabel('拟合的超标率')
+        plt.title('拟合曲线图')
+        plt.legend()
+        plt.grid(True)
+
+        # TODO 先打游戏去了，反求y明天再做
+
