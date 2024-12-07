@@ -37,140 +37,158 @@ def ui(share=False):
 
     with gr.Blocks(theme=custom_theme) as ui:
         gr.Markdown("## “污染源—土壤—活化—作物”全链条风险预警模拟器")
-        with gr.Tab("开始界面"):
-            gr.Image(label="欢迎", value=os.path.join(".", "Images", f"img{random.randint(1, 4)}.png"))
-        with gr.Tab("影响分析"):
-            gr.Markdown("# 现存污染源贡献量变化影响分析")
-            with gr.Row(equal_height=True):
-                p1_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), value="", label="数据文件", allow_custom_value=True)
-                p1_sheet_name_input = gr.Dropdown(choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True)
-                p1_model_input = gr.Dropdown(
-                    choices=get_model_choices(),
-                    label="选择拟合模型",
-                )
+        with gr.Tabs() as tabs:
+            with gr.Tab("开始界面", id="p0"):
+                p0_welcome_img = gr.Image(label="欢迎", value=os.path.join(".", "Images", f"img_init_{random.randint(1, 4)}.png"))
+                with gr.Row(equal_height=True):
+                    p0_to_p1_button = gr.Button("影响分析")
+                    p0_to_p2_button = gr.Button("路径解析")
+                    p0_to_p3_button = gr.Button("风险区分析")
+                    p0_to_p4_button = gr.Button("主因和阈值计算")
+                    p0_to_p5_button = gr.Button("区域分布预测")
+            with gr.Tab("影响分析", id="p1"):
+                gr.Markdown("# 现存污染源贡献量变化影响分析")
+                with gr.Row(equal_height=True):
+                    p1_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), value="", label="数据文件", allow_custom_value=True)
+                    p1_sheet_name_input = gr.Dropdown(choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True)
+                    p1_model_input = gr.Dropdown(
+                        choices=get_model_choices(),
+                        label="选择拟合模型",
+                    )
 
-            with gr.Row(equal_height=True):
-                p1_feature_input = gr.Dropdown(choices=[], label="自变量特征选择", multiselect=True, interactive=True, scale=3)
-                p1_target_input = gr.Dropdown(choices=[], label="因变量特征选择", interactive=True, scale=1)
-                p1_run_button = gr.Button(value="运行", scale=1)
-            with gr.Row(equal_height=True):
-                gr.Image(label="结果因果模型", value=os.path.join(".", "Images", "img_causal.png"))
+                with gr.Row(equal_height=True):
+                    p1_feature_input = gr.Dropdown(choices=[], label="自变量特征选择", multiselect=True, interactive=True, scale=3)
+                    p1_target_input = gr.Dropdown(choices=[], label="因变量特征选择", interactive=True, scale=1)
+                    p1_run_button = gr.Button(value="运行", scale=1)
+                with gr.Row(equal_height=True):
+                    gr.Image(label="结果因果模型", value=os.path.join(".", "Images", "img_causal.png"))
 
-                with gr.Column():
-                    p1_img2_output = gr.Image(label="贡献率分析")
-                    gr.Image(label="变化分析影响")
-        with gr.Tab("路径解析"):
-            gr.Markdown("# 潜在历史污染源及污染路径解析")
-            with gr.Row(equal_height=True):
-                with gr.Column(scale=6):
-                    with gr.Row():
-                        p2_map_name_input = gr.Dropdown(choices=list(shp_files.keys()), label="地图文件", scale=2)
-                        p2_file_name_input = gr.Dropdown(
-                            choices=list(xlsx_files.keys()), value="", label="数据文件", scale=2, allow_custom_value=True
-                        )
-                        p2_sheet_name_input = gr.Dropdown(
-                            choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True
-                        )
-                    with gr.Row(equal_height=True):
-                        p2_params_input = gr.Dropdown(choices=[], label="特征选择", multiselect=True, interactive=True, scale=3)
-                        with gr.Column():
-                            p2_label_input = gr.Dropdown(choices=[], label="污染源特征选择", interactive=True, scale=1)
-                            p2_n_pca_input = gr.Dropdown(choices=[0], value=0, label="主因数量选择")
-                with gr.Column(scale=1):
-                    p2_lon = gr.Textbox(label="地块东经")
-                    p2_lat = gr.Textbox(label="地块北纬")
-                    p2_row = gr.Textbox(label="栅格行数", value=20)
-                    p2_col = gr.Textbox(label="栅格列数", value=20)
+                    with gr.Column():
+                        p1_img2_output = gr.Image(label="贡献率分析")
+                        gr.Image(label="变化分析影响")
+            with gr.Tab("路径解析", id="p2"):
+                gr.Markdown("# 潜在历史污染源及污染路径解析")
+                with gr.Row(equal_height=True):
+                    with gr.Column(scale=6):
+                        with gr.Row():
+                            p2_map_name_input = gr.Dropdown(choices=list(shp_files.keys()), label="地图文件", scale=2)
+                            p2_file_name_input = gr.Dropdown(
+                                choices=list(xlsx_files.keys()), value="", label="数据文件", scale=2, allow_custom_value=True
+                            )
+                            p2_sheet_name_input = gr.Dropdown(
+                                choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True
+                            )
+                        with gr.Row(equal_height=True):
+                            p2_params_input = gr.Dropdown(choices=[], label="特征选择", multiselect=True, interactive=True, scale=3)
+                            with gr.Column():
+                                p2_label_input = gr.Dropdown(choices=[], label="污染源特征选择", interactive=True, scale=1)
+                                p2_n_pca_input = gr.Dropdown(choices=[0], value=0, label="主因数量选择")
+                    with gr.Column(scale=1):
+                        p2_lon = gr.Textbox(label="地块东经")
+                        p2_lat = gr.Textbox(label="地块北纬")
+                        p2_row_col = gr.Textbox(label="栅格行数&列数", value=20)
 
-                p2_run_button = gr.Button(value="运行", scale=1)
+                    p2_run_button = gr.Button(value="运行", scale=1)
 
-            with gr.Row(equal_height=True):
-                p2_pca_img = gr.Image(label="相似度分析")
-                with gr.Column():
-                    p2_grid_img = gr.Image(label="污染源")
-                    p2_path_img = gr.Image(label="污染路径")
-        with gr.Tab("风险区分析"):
-            gr.Markdown("# 土壤重金属未来超标风险区分析")
-            with gr.Row(equal_height=True):
-                p3_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), value="", label="数据文件", allow_custom_value=True)
-                p3_map_name_input = gr.Dropdown(choices=list(shp_files.keys()), label="地图文件")
+                with gr.Row(equal_height=True):
+                    p2_pca_img = gr.Image(label="相似度分析")
+                    with gr.Column():
+                        p2_grid_img = gr.Image(label="污染源")
+                        p2_path_img = gr.Image(label="污染路径")
+            with gr.Tab("风险区分析", id="p3"):
+                gr.Markdown("# 土壤重金属未来超标风险区分析")
+                with gr.Row(equal_height=True):
+                    p3_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), value="", label="数据文件", allow_custom_value=True)
+                    p3_map_name_input = gr.Dropdown(choices=list(shp_files.keys()), label="地图文件")
 
-            gr.Markdown("累积趋势分析")
-            with gr.Row(equal_height=True):
-                p3_time_basic_select = gr.Dropdown([], label="基准年份")
-                p3_time_select = gr.Dropdown([], label="指定年份")
-                p3_run_button = gr.Button("运行")
-            with gr.Row(equal_height=True):
-                p3_dot_img = gr.Image(label="监测点位累积幅度空间分布图")
-                with gr.Column():
-                    p3_pie_img = gr.Image(label="监测点位累积幅度占比统计")
-                    p3_line_img = gr.Image(label="监测数据年际变化")
+                gr.Markdown("累积趋势分析")
+                with gr.Row(equal_height=True):
+                    p3_time_basic_select = gr.Dropdown([], label="基准年份")
+                    p3_time_select = gr.Dropdown([], label="指定年份")
+                    p3_run_button = gr.Button("运行")
+                with gr.Row(equal_height=True):
+                    p3_dot_img = gr.Image(label="监测点位累积幅度空间分布图")
+                    with gr.Column():
+                        p3_pie_img = gr.Image(label="监测点位累积幅度占比统计")
+                        p3_line_img = gr.Image(label="监测数据年际变化")
 
-            gr.Markdown("超标风险区分析")
-            with gr.Row(equal_height=True):
-                gr.Dropdown(["2020"], label="预测年份")
-                gr.Button("计算")
-            with gr.Row(equal_height=True):
-                p3_speed_output = gr.Textbox(label="年均累计速率(mg/(kg·y)):")
-            with gr.Row(equal_height=True):
-                gr.Image(label="未来超标风险区空间分布图")
+                gr.Markdown("超标风险区分析")
+                with gr.Row(equal_height=True):
+                    gr.Dropdown(["2020"], label="预测年份")
+                    gr.Button("计算")
+                with gr.Row(equal_height=True):
+                    p3_speed_output = gr.Textbox(label="年均累计速率(mg/(kg·y)):")
+                with gr.Row(equal_height=True):
+                    gr.Image(label="未来超标风险区空间分布图")
 
-        with gr.Tab("主因和阈值计算"):
-            gr.Markdown("# 土壤重金属活化主因及安全阈值测算")
-            with gr.Row(equal_height=True):
-                p4_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), label="数据文件")
-                p4_sheet_name_input = gr.Dropdown(choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True)
-                p4_model_input = gr.Dropdown(choices=get_model_choices(), label="选择拟合模型")
-            with gr.Row(equal_height=True):
-                p4_feature_input = gr.Dropdown(
-                    choices=[], label="自变量特征选择(至少选择 5 个)", multiselect=True, interactive=True, scale=3
-                )
-                p4_target_input = gr.Dropdown(choices=[], label="因变量特征选择", interactive=True, scale=1)
-                p4_run_button = gr.Button(value="运行", scale=1)
-            gr.Markdown("归一化模型")
-            p4_fitting_img = gr.Image(label="训练集和测试集拟合效果")
-            with gr.Row():
-                p4_shap_img = gr.Image(label="主因识别")
-                p4_hassian_img = gr.Image(label="关键辅因分析")
-            gr.Markdown("安全阈值计算")
-            with gr.Row(equal_height=True):
-                p4_factor1 = gr.Textbox(label="factor1")
-                p4_factor2 = gr.Textbox(label="factor2")
-                p4_factor3 = gr.Textbox(label="factor3")
-                p4_factor4 = gr.Textbox(label="factor4")
-                p4_factor5 = gr.Textbox(label="factor5")
-                p4_run_button_2 = gr.Button("运行")
-            with gr.Row():
-                p4_prediction_img = gr.Image(label="预测曲线")
-                p4_shiki_img = gr.Image(label="shiki")
-            p4_threshold_output = gr.Textbox(label="安全阈值计算")
-        with gr.Tab("区域分布预测"):
-            gr.Markdown("# 农产品重金属超标区域分布预测")
-            with gr.Row(equal_height=True):
-                p5_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), label="数据文件")
-                p5_sheet_name_input = gr.Dropdown(choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True)
-                p5_model_input = gr.Dropdown(choices=get_model_choices(), label="选择拟合模型")
-            with gr.Row(equal_height=True):
-                p5_feature_input = gr.Dropdown(choices=[], label="自变量特征选择", multiselect=True, interactive=True, scale=3)
-                p5_target_input = gr.Dropdown(choices=[], label="因变量特征选择", interactive=True, scale=1)
-                p5_run_button = gr.Button(value="运行", scale=1)
-            gr.Markdown("指标筛选")
-            with gr.Row():
-                p5_Cd_img = gr.Image(label="土壤作物对应")
-                p5_anova_img = gr.Image(label="方差分析")
-            with gr.Row():
-                p5_correlation_img = gr.Image(label="相关分析")
-                p5_shap_img = gr.Image(label="主因分析")
+            with gr.Tab("主因和阈值计算", id="p4"):
+                gr.Markdown("# 土壤重金属活化主因及安全阈值测算")
+                with gr.Row(equal_height=True):
+                    p4_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), label="数据文件")
+                    p4_sheet_name_input = gr.Dropdown(choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True)
+                    p4_model_input = gr.Dropdown(choices=get_model_choices(), label="选择拟合模型")
+                with gr.Row(equal_height=True):
+                    p4_feature_input = gr.Dropdown(
+                        choices=[], label="自变量特征选择(除 Cd 外至少选择 5 个)", multiselect=True, interactive=True, scale=3
+                    )
+                    p4_target_input = gr.Dropdown(choices=[], label="因变量特征选择", interactive=True, scale=1)
+                    p4_run_button = gr.Button(value="运行", scale=1)
+                gr.Markdown("归一化模型")
+                p4_fitting_img = gr.Image(label="训练集和测试集拟合效果")
+                with gr.Row():
+                    p4_shap_img = gr.Image(label="主因识别")
+                    p4_hassian_img = gr.Image(label="关键辅因分析")
+                gr.Markdown("安全阈值计算")
+                with gr.Row(equal_height=True):
+                    p4_factor1 = gr.Textbox(label="factor1")
+                    p4_factor2 = gr.Textbox(label="factor2")
+                    p4_factor3 = gr.Textbox(label="factor3")
+                    p4_factor4 = gr.Textbox(label="factor4")
+                    p4_factor5 = gr.Textbox(label="factor5")
+                    p4_run_button_2 = gr.Button("运行")
+                with gr.Row():
+                    p4_prediction_img = gr.Image(label="预测曲线")
+                    p4_shiki_img = gr.Image(label="shiki")
+                p4_threshold_output = gr.Textbox(label="安全阈值计算")
+            with gr.Tab("区域分布预测", id="p5"):
+                gr.Markdown("# 农产品重金属超标区域分布预测")
+                with gr.Row(equal_height=True):
+                    p5_file_name_input = gr.Dropdown(choices=list(xlsx_files.keys()), label="数据文件")
+                    p5_sheet_name_input = gr.Dropdown(choices=[], value="", label="选择数据页", interactive=True, allow_custom_value=True)
+                    p5_model_input = gr.Dropdown(choices=get_model_choices(), label="选择拟合模型")
+                with gr.Row(equal_height=True):
+                    p5_feature_input = gr.Dropdown(choices=[], label="自变量特征选择", multiselect=True, interactive=True, scale=3)
+                    p5_target_input = gr.Dropdown(choices=[], label="因变量特征选择", interactive=True, scale=1)
+                    p5_run_button = gr.Button(value="运行", scale=1)
+                gr.Markdown("指标筛选")
+                with gr.Row():
+                    p5_Cd_img = gr.Image(label="土壤作物对应")
+                    p5_anova_img = gr.Image(label="方差分析")
+                with gr.Row():
+                    p5_correlation_img = gr.Image(label="相关分析")
+                    p5_shap_img = gr.Image(label="主因分析")
 
-            with gr.Row(equal_height=True):
-                p5_model_input_1 = gr.Dropdown(choices=get_model_choices(), label="选择模型 1")
-                p5_model_input_2 = gr.Dropdown(choices=get_model_choices(), label="选择模型 2")
-                p5_model_input_3 = gr.Dropdown(choices=get_model_choices(), label="选择模型 3")
-                p5_run_button_2 = gr.Button(value="运行")
-            with gr.Row():
-                p5_rmse_img = gr.Image(label="RMSE")
-                p5_mae_img = gr.Image(label="MAE")
-                p5_r2_img = gr.Image(label="R2")
+                with gr.Row(equal_height=True):
+                    p5_model_input_1 = gr.Dropdown(choices=get_model_choices(), label="选择模型 1")
+                    p5_model_input_2 = gr.Dropdown(choices=get_model_choices(), label="选择模型 2")
+                    p5_model_input_3 = gr.Dropdown(choices=get_model_choices(), label="选择模型 3")
+                    p5_run_button_2 = gr.Button(value="运行")
+                with gr.Row():
+                    p5_rmse_img = gr.Image(label="RMSE")
+                    p5_mae_img = gr.Image(label="MAE")
+                    p5_r2_img = gr.Image(label="R2")
+
+        # page0
+        p0_to_p1_button.click(fn=lambda: gr.update(selected="p1"), outputs=tabs)
+        p0_to_p2_button.click(fn=lambda: gr.update(selected="p2"), outputs=tabs)
+        p0_to_p3_button.click(fn=lambda: gr.update(selected="p3"), outputs=tabs)
+        p0_to_p4_button.click(fn=lambda: gr.update(selected="p4"), outputs=tabs)
+        p0_to_p5_button.click(fn=lambda: gr.update(selected="p5"), outputs=tabs)
+
+        tabs.change(
+            lambda: os.path.join(".", "Images", f"img_init_{random.randint(1, 4)}.png"),
+            outputs=p0_welcome_img,
+        )
 
         # page1
         p1_file_name_input.change(
@@ -227,13 +245,13 @@ def ui(share=False):
             outputs=[p2_label_input, p2_n_pca_input],
         )
 
-        def p2_run_click(file_name: str, map_name: str, params_name: List[str], label: str, n: int, row: int, col: int):
+        def p2_run_click(file_name: str, map_name: str, params_name: List[str], label: str, n: int, row_col: int):
             data = pd.read_excel(xlsx_files[file_name], sheet_name="原始数据")
             gmap = GeoMap(shp_files[map_name])
             gmap.load_dots_df(data, params_name=params_name)
             kringing_path = kringing(data, params_name=params_name, num=100)
             gmap.load_dots_df(pd.read_excel(kringing_path), params_name=params_name)
-            gmap.grid_paint(int(row), int(col))
+            gmap.grid_paint(int(row_col), int(row_col))
             pca_path = img_pca_loading(data, params_name, n)
             img_grid_path_grey = gmap.save_grid_image_simple(label, color=False)
             img_grid_path_color = gmap.save_grid_image_simple(label, color=True)
@@ -255,8 +273,7 @@ def ui(share=False):
                 p2_params_input,
                 p2_label_input,
                 p2_n_pca_input,
-                p2_row,
-                p2_col,
+                p2_row_col,
             ],
             outputs=[p2_lon, p2_lat, p2_pca_img, p2_grid_img, p2_path_img],
         )
@@ -286,7 +303,7 @@ def ui(share=False):
             )
             img_dot_path = gmap.save_dot_image(label_basic, label)
             img_pie_path = img_pie_percent(data, label_basic, label)
-            img_line_path = img_line_percent(data)
+            img_line_path = img_line_percent(data, start_time=label_basic, end_time=label)
             average_speed = get_average_speed(data, label_basic, label)
 
             return img_dot_path, img_pie_path, img_line_path, average_speed

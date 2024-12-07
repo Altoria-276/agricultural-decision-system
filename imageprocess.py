@@ -183,10 +183,9 @@ def img_pie_percent(data: pd.DataFrame, label_basic: str = "2008年", label: str
     return file_path
 
 
-def img_line_percent(data: pd.DataFrame):
+def img_line_percent(data: pd.DataFrame, start_time: str = "2008年", end_time: str = "2020年"):
     fig, ax = plt.subplots(figsize=(15, 6))
-    ans = data.iloc[:, 3:].T.pct_change().T.iloc[:, 1:]
-
+    ans = data[[item for item in data.columns if item.endswith("年") and start_time <= item <= end_time]].T.pct_change().T.iloc[:, 1:]
     # 绘制箱线图
     ax.boxplot(x=ans)
 
@@ -194,6 +193,7 @@ def img_line_percent(data: pd.DataFrame):
     ax.set_title("年度百分比变化")
     ax.set_xlabel("年份")
     ax.set_ylabel("百分比变化(%)")
+    ax.set_xticks(range(1, len(ans.columns) + 1), ans.columns)
 
     file_path = os.path.join(get_temp_image_path(), "img_line_percent.png")
     fig.savefig(file_path)

@@ -229,7 +229,21 @@ class GeoMap:
 
         cmap = "viridis" if color else "Greys"
         alpha = 0.5 if color else 1
-        ax.imshow(self.grid.value_matrix, origin="lower", cmap=cmap, alpha=alpha)
+
+        norm = None
+
+        if color:
+            # 获取值的最小值和最大值
+            vmin = np.nanmin(self.grid.value_matrix)
+            vmax = np.nanmax(self.grid.value_matrix)
+
+            # 计算80%部分的值
+            vcenter = np.nanpercentile(self.grid.value_matrix, 80)
+
+            # 使用 TwoSlopeNorm 进行颜色归一化
+            norm = TwoSlopeNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
+
+        ax.imshow(self.grid.value_matrix, origin="lower", cmap=cmap, alpha=alpha, norm=norm)
         ax.axis("off")
 
         tag = "grey" if not color else "color"
