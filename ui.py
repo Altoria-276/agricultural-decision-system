@@ -54,7 +54,7 @@ def ui(share=False):
                 p1_target_input = gr.Dropdown(choices=[], label="因变量特征选择", interactive=True, scale=1)
                 p1_run_button = gr.Button(value="运行", scale=1)
             with gr.Row(equal_height=True):
-                gr.Image(label="结果因果模型")
+                gr.Image(label="结果因果模型", value=os.path.join(".", "Images", "img_causal.png"))
 
                 with gr.Column():
                     p1_img2_output = gr.Image(label="贡献率分析")

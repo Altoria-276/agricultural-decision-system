@@ -162,4 +162,4 @@ cython_debug/
 .idea/
 
 # Ignore Images directory
-Images/
+Images/Temp/
