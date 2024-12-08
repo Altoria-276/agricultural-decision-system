@@ -8,13 +8,21 @@ import shap
 from sklearn.discriminant_analysis import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error, confusion_matrix, precision_score, recall_score, f1_score
+from sklearn.metrics import (
+    mean_absolute_error,
+    r2_score,
+    root_mean_squared_error,
+    confusion_matrix,
+    precision_score,
+    recall_score,
+    f1_score,
+)
 from sklearn.linear_model import Lasso, LinearRegression, Ridge
 from matplotlib import rcParams
 import matplotlib
 import seaborn as sns
 import os
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, fsolve
 
 from sklearn.svm import SVR
 from sklearn.tree import DecisionTreeRegressor
@@ -373,109 +381,138 @@ class RegressionModel:
         plt.close()
         return img_path
 
-    # TODO 将self.X替换成固定值
-    def plot_overrate(self, threshold_range=None, lin_num=50, y_threshold=0.2, save_path=".\Images"):
+    def plot_overrate(self, params: dict, Cd_threshold=0.2):
         """
-        绘制超标率与阈值的关系，并拟合曲线
+        绘制超标率与 Cd 阈值的关系图。
+
         Args:
-            threshold_range (tuple): 阈值范围，默认使用自定义范围
-            y_threshold (float): 第二轮筛选y值的阈值，默认为0.2
-            lin_num (int): 在阈值范围内拆分的小片个数
-            save_path (str): 生成的图表保存路径
+            params (dict): 用于预测的特征值
+            Cd_threshold (float, optional): Cd 阈值. Defaults to 0.2.
 
         Returns:
-            tuple: 绘制拟合曲线的散点x值（Cd阈值）和y值（超标率）
+            str: 图片路径
+            function: 拟合函数
         """
 
-        # 如果没有提供阈值范围，则自动生成一个合理的范围
-        if threshold_range is None:
-            threshold_range = (self.data['Cd'].min(), self.data['Cd'].max())
+        fix_data = self.data.copy()
+        fix_x_scaled = self.scaler.transform(fix_data[self.feature])
+        for key, value in params.items():
+            fix_data[key] = value
 
-        # 生成多个阈值并计算对应的超标率
-        thresholds = np.linspace(threshold_range[0], threshold_range[1], lin_num)
-        overrate = []
+        # 生成多个值并计算对应的超标率
+        x_data = np.linspace(self.data["Cd"].min(), self.data["Cd"].max(), 20)
+        y_predict = self.model.predict(fix_x_scaled)
+        y_data = []
 
         # 获取用于拟合的真实数据 x_data 和 y_data
-        for threshold in thresholds:
-            # 第一轮筛选：Cd < threshold
-            selected_data = self.data[self.data['Cd'] < threshold]
-
-            # 第二轮筛选：预测值y > y_threshold
-            predict_y = self.model.predict(selected_data[self.feature])
-            selected_data['predicted_y'] = predict_y
-            overrate_samples = selected_data[selected_data['predicted_y'] > y_threshold]
+        for x in x_data:
+            # 筛选：Cd < x & y_predict > Cd_threshold
+            selected_data = fix_data[(fix_data["Cd"] < x) & (y_predict > Cd_threshold)]
 
             # 计算超标率
-            overrate.append(len(overrate_samples) / len(self.data))
-
-        # 用于拟合的真实数据
-        x_data = thresholds
-        y_data = overrate
+            y_data.append(len(selected_data) / len(fix_data))
 
         # 拟合曲线函数
-        def fit_func(x, theta, lambda_val):
-            return (1 / (1 + x ** lambda_val)) ** theta
+        def fit_func(x, theta_param, lambda_param):
+            return (1 / (1 + x**lambda_param)) ** theta_param
 
         # 使用curve_fit进行拟合，获得λ和θ的最优值，p0是拟合参数猜测，如有更精准的参数猜测可以更改
         popt, pcov = curve_fit(fit_func, x_data, y_data, p0=[1, 1])
 
         # 使用拟合参数绘图
-        x_fit = np.linspace(min(x_data), max(x_data), 100)          # 这里切分数量（100）是写死的
+        x_fit = np.linspace(min(x_data), max(x_data), 100)  # 这里切分数量（100）是写死的
         y_fit = fit_func(x_fit, *popt)
 
         # 绘制超标率与阈值的关系图
-        plt.figure(figsize=(8, 6))
-        plt.scatter(x_data, y_data, label='超标率', color='blue')
-        plt.plot(x_fit, y_fit, 'r-', label=f'拟合曲线: f(x) = (1/(1+x^{popt[1]}))^{popt[0]}', linestyle='--')
-        plt.xlabel('Cd阈值')
-        plt.ylabel('超标率')
-        plt.title('超标率与Cd阈值的关系')
-        plt.legend()
-        plt.grid(True)
-        if save_path:
-            plt.savefig(save_path, format='png', dpi=300, bbox_inches='tight')
 
-        return x_fit, y_fit
+        fig, ax = plt.subplots()
+        ax.scatter(x_data, y_data, label="超标率", color="blue")
+        ax.plot(x_fit, y_fit, "r-", label=f"拟合曲线: f(x) = (1/(1+x^{popt[1]:.2f}))^{popt[0]:.2f}")
+        ax.set_xlabel("Cd阈值")
+        ax.set_ylabel("超标率")
+        ax.set_title("超标率与Cd阈值的关系")
+        ax.legend()
+        ax.grid(True)
 
-    def find_safe_threshold(self, target_overrate, y_threshold=0.2):
+        img_path = os.path.join(get_temp_image_path(), "overrate.png")
+        fig.savefig(img_path, format="png", dpi=300, bbox_inches="tight")
+
+        return img_path, lambda x: fit_func(x, *popt)
+
+    def find_safe_threshold(self, func, target_overrate=0.95, Cd_threshold=0.2):
         """
-        给定一个目标超标率(target_overrate)和y阈值(y_threshold)，反求出其对应的Cd阈值(安全阈值)，
-        并根据此阈值计算混淆矩阵及其评估指标。
+        根据超标率函数，找到安全阈值。
 
         Args:
-            target_overrate (float): 目标超标率
-            y_threshold (float): 第二轮筛选y值的阈值，默认为0.2
+            func: 拟合函数
+            target_overrate (float, optional): 目标超标率. Defaults to 0.95.
+            Cd_threshold (float, optional): Cd 阈值. Defaults to 0.2.
 
         Returns:
-            tuple: 安全阈值和混淆矩阵评估指标 (precision, recall, F1_score)
+            float: 安全阈值
+            dict: 评估指标
         """
 
-        # 调用 plot_overrate 方法获取 x_data 和 y_data
-        threshold_range = (self.data['Cd'].min(), self.data['Cd'].max())
-        lin_num = 50
-        x_data, y_data = self.plot_overrate(threshold_range, lin_num, y_threshold, save_path=None)
-
-        # 找到第一个大于等于目标超标率的索引
-        index = next((i for i, rate in enumerate(y_data) if rate >= target_overrate), None)
-        if index is None:
-            raise ValueError("没有找到符合条件的安全阈值")
-
-        safe_threshold = x_data[index]
+        # 使用牛顿法 fsolve 求解 g(x) = 0 的 x 值
+        safe_threshold: float = fsolve(lambda x: func(x) - target_overrate, 0.1)[0]
 
         # 根据安全阈值计算混淆矩阵
-        y_true = (self.data['Cd'] >= safe_threshold).astype(int)  # 实际Cd值是否超过安全阈值
-        y_pred = (self.y > y_threshold).astype(int)  # 预测值是否超过y阈值
-
-        tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+        y_pred = self.data["Cd"] >= safe_threshold  # 预测值是否超过y阈值
+        y_true = self.y > Cd_threshold  # 实际Cd值是否超过安全阈值
 
         # 计算评估指标
-        precision = precision_score(y_true, y_pred)
-        recall = recall_score(y_true, y_pred)
-        f1 = f1_score(y_true, y_pred)
+        precision: float = precision_score(y_true, y_pred)
+        recall: float = recall_score(y_true, y_pred)
+        f1: float = f1_score(y_true, y_pred)
 
-        return safe_threshold, {
-            'confusion_matrix': {'TP': tp, 'TN': tn, 'FP': fp, 'FN': fn},
-            'precision': precision,
-            'recall': recall,
-            'F1_score': f1
-        }
+        return safe_threshold, precision, recall, f1
+
+    def plot_variable_impact(self, variable):  # 新增变化影响分析
+        """
+        绘制指定变量变化对预测均值的影响。
+
+        Args:
+            variable (str): 指定的变量
+
+        Raises:
+            ValueError: 指定的变量不在特征列表中
+
+        Returns:
+            str: 图片路径
+        """
+        if variable not in self.feature:
+            raise ValueError(f"指定的变量 {variable} 不在特征列表中。")
+
+        # 原始预测值
+
+        X_scaled = self.scaler.transform(self.X)
+        original_pred = self.model.predict(X_scaled)
+        original_mean = np.mean(original_pred)
+
+        # 存储不同变化情况下的预测均值
+        means = [original_mean]
+        factors = [1.0, 0.95, 0.9, 0.8]
+
+        for factor in factors[1:]:
+            # 创建副本并调整指定变量
+            X_modified = self.X.copy()
+            X_modified[variable] *= factor
+
+            # 预测新值并计算均值
+            X_modified_scaled = self.scaler.transform(X_modified)
+            modified_pred = self.model.predict(X_modified_scaled)
+            modified_mean = np.mean(modified_pred)
+            means.append(modified_mean)
+
+        # 绘制柱状图
+        fig, ax = plt.subplots()
+        ax.bar(["原始值", "95%", "90%", "80%"], means, color=["blue", "orange", "green", "red"])
+        ax.set_title(f"变量 {variable} 变化对预测均值的影响")
+        ax.set_xlabel("变量调整比例")
+        ax.set_ylabel("预测均值")
+        ax.grid(axis="y", linestyle="--", alpha=0.7)
+
+        img_path = os.path.join(get_temp_image_path(), "variable_impact.png")
+        fig.savefig(img_path)
+
+        return img_path

@@ -195,6 +195,11 @@ class GeoMap:
         ax.set_xlim(bounds[:2])
         ax.set_ylim(bounds[2:])
 
+        ax.set_xlabel("Longitude")
+        ax.set_ylabel("Latitude")
+        new_year = int(label.replace("年", "")) + year
+        ax.set_title(f"风险区域图({new_year}年)")
+
         file_path = os.path.join(get_temp_image_path(), "img_risk_area.png")
         fig.savefig(file_path)
         plt.close()

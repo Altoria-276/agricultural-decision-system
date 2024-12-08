@@ -282,7 +282,7 @@ def plot_correlation_matrix(data, params_name):
     return file_path
 
 
-def plot_Cd(data):
+def plot_Cd(data, x_threshold=None, y_threshold=None):
     x = data["Cd"]
     y = data["水稻Cd"]
 
@@ -291,6 +291,14 @@ def plot_Cd(data):
 
     ax.set_xlabel("Cd")
     ax.set_ylabel("水稻Cd")
+
+    # 绘制 x 轴阈值线
+    if x_threshold is not None:
+        ax.axvline(x=x_threshold, color="r", linestyle="--", label=f"Cd 阈值: {x_threshold}")
+
+    # 绘制 y 轴阈值线
+    if y_threshold is not None:
+        ax.axhline(y=y_threshold, color="b", linestyle="--", label=f"水稻Cd 阈值: {y_threshold}")
 
     file_path = os.path.join(get_temp_image_path(), "img_Cd.png")
     fig.savefig(file_path)

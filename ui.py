@@ -62,10 +62,11 @@ def ui(share=False):
                     p1_run_button = gr.Button(value="运行", scale=1)
                 with gr.Row(equal_height=True):
                     gr.Image(label="结果因果模型", value=os.path.join(".", "Images", "img_causal.png"))
-
-                    with gr.Column():
-                        p1_img2_output = gr.Image(label="贡献率分析")
-                        gr.Image(label="变化分析影响")
+                    p1_pie_img = gr.Image(label="贡献率分析")
+                with gr.Row(equal_height=True):
+                    p1_feature_select = gr.Dropdown(value="", choices=[], label="选择变量", allow_custom_value=True)
+                    p1_run_button_2 = gr.Button("运行")
+                p1_influence_img = gr.Image(label="变化分析影响")
             with gr.Tab("路径解析", id="p2"):
                 gr.Markdown("# 潜在历史污染源及污染路径解析")
                 with gr.Row(equal_height=True):
@@ -149,8 +150,13 @@ def ui(share=False):
                     p4_run_button_2 = gr.Button("运行")
                 with gr.Row():
                     p4_prediction_img = gr.Image(label="预测曲线")
-                    p4_shiki_img = gr.Image(label="shiki")
-                p4_threshold_output = gr.Textbox(label="安全阈值计算")
+                    p4_Cd_img = gr.Image(label="Cd & 水稻 Cd")
+                with gr.Row(equal_height=True):
+                    p4_threshold_output = gr.Textbox(label="安全阈值计算")
+                    p4_precision_output = gr.Textbox(label="precision")
+                    p4_recall_output = gr.Textbox(label="Recall")
+                    p4_f1_output = gr.Textbox(label="F1")
+
             with gr.Tab("区域分布预测", id="p5"):
                 gr.Markdown("# 农产品重金属超标区域分布预测")
                 with gr.Row(equal_height=True):
@@ -207,12 +213,16 @@ def ui(share=False):
             fn=p1_sheet_change, inputs=[p1_file_name_input, p1_sheet_name_input], outputs=[p1_target_input, p1_feature_input]
         )
 
+        p1_feature_input.change(lambda x: gr.update(choices=x), inputs=p1_feature_input, outputs=p1_feature_select)
+
+        p1_params = gr.State()
+
         def p1_run_click(file_name: str, sheet_name: str, model_name: str, feature: List[str], target: str):
             data = pd.read_excel(get_xlsx_files()[file_name], sheet_name)
             model = RegressionModel(model_name, data, feature, target)
             model.train_and_evaluate_model()
             img_path = model.plot_coefficients()
-            return img_path
+            return img_path, model
 
         p1_run_button.click(
             fn=p1_run_click,
@@ -223,7 +233,20 @@ def ui(share=False):
                 p1_feature_input,
                 p1_target_input,
             ],
-            outputs=p1_img2_output,
+            outputs=[
+                p1_pie_img,
+                p1_params,
+            ],
+        )
+
+        def p1_run_click_2(model: RegressionModel, feature: str):
+            img_path = model.plot_variable_impact(feature)
+            return img_path
+
+        p1_run_button_2.click(
+            fn=p1_run_click_2,
+            inputs=[p1_params, p1_feature_select],
+            outputs=p1_influence_img,
         )
 
         # page2
@@ -380,6 +403,7 @@ def ui(share=False):
                 img_fitting_path,
                 img_shap_path,
                 img_hessian_path,
+                model,
                 top_features,
                 update1,
                 update2,
@@ -388,7 +412,8 @@ def ui(share=False):
                 update5,
             )
 
-        p4_params = gr.State()
+        p4_params_features = gr.State()
+        p4_params_model = gr.State()
 
         p4_run_button.click(
             fn=p4_run_click,
@@ -403,7 +428,8 @@ def ui(share=False):
                 p4_fitting_img,
                 p4_shap_img,
                 p4_hassian_img,
-                p4_params,
+                p4_params_model,
+                p4_params_features,
                 p4_factor1,
                 p4_factor2,
                 p4_factor3,
@@ -413,10 +439,7 @@ def ui(share=False):
         )
 
         def p4_run_click_2(
-            file_name: str,
-            sheet_name: str,
-            model_name: str,
-            target: str,
+            model: RegressionModel,
             params,
             factor1: float,
             factor2: float,
@@ -424,7 +447,6 @@ def ui(share=False):
             factor4: float,
             factor5: float,
         ):
-            data = pd.read_excel(xlsx_files[file_name], sheet_name)
             params[0][1] = factor1
             params[1][1] = factor2
             params[2][1] = factor3
@@ -433,29 +455,20 @@ def ui(share=False):
             feature = [params[0][0], params[1][0], params[2][0], params[3][0], params[4][0]]
             if "Cd" not in feature:
                 feature.append("Cd")
-            model = RegressionModel(model_name, data, feature, target)
-            model.train_and_evaluate_model()
             base_feature_values = dict(params)
 
-            # 计算土壤 Cd 的安全阈值
-            threshold_cd = model.calculate_threshold(fixed_values=base_feature_values, variable_feature="Cd", target_value=0.2)
-            variable_range = np.linspace(0, 2, 100)
-            img_prediction_path = model.plot_prediction_curve(
-                fixed_values=base_feature_values,
-                variable_feature="Cd",
-                variable_range=variable_range,
-            )
+            img_overrate_path, func = model.plot_overrate(base_feature_values)
+            safe_threshold, precision, recall, f1 = model.find_safe_threshold(func, 0.95, 0.2)
 
-            return threshold_cd, img_prediction_path
+            img_Cd_path = plot_Cd(model.data, safe_threshold, 0.2)
+
+            return img_overrate_path, img_Cd_path, safe_threshold, precision, recall, f1
 
         p4_run_button_2.click(
             fn=p4_run_click_2,
             inputs=[
-                p4_file_name_input,
-                p4_sheet_name_input,
-                p4_model_input,
-                p4_target_input,
-                p4_params,
+                p4_params_model,
+                p4_params_features,
                 p4_factor1,
                 p4_factor2,
                 p4_factor3,
@@ -463,8 +476,12 @@ def ui(share=False):
                 p4_factor5,
             ],
             outputs=[
-                p4_threshold_output,
                 p4_prediction_img,
+                p4_Cd_img,
+                p4_threshold_output,
+                p4_precision_output,
+                p4_recall_output,
+                p4_f1_output,
             ],
         )
 
@@ -489,7 +506,7 @@ def ui(share=False):
             data = pd.read_excel(get_xlsx_files()[file_name], sheet_name)
             model = RegressionModel(model_name, data, feature, target)
             model.train_and_evaluate_model()
-            img_Cd_path = plot_Cd(data)
+            img_Cd_path = plot_Cd(data, y_threshold=0.2)
             img_anova_path = plot_anova(data, feature)
             img_shap_path = model.plot_shap_importance()
             img_correlation_path = plot_correlation_matrix(data, feature)
