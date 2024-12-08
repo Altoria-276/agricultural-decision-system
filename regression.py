@@ -8,7 +8,7 @@ import shap
 from sklearn.discriminant_analysis import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
+from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error, confusion_matrix, precision_score, recall_score, f1_score
 from sklearn.linear_model import Lasso, LinearRegression, Ridge
 from matplotlib import rcParams
 import matplotlib
@@ -374,12 +374,17 @@ class RegressionModel:
         return img_path
 
     # TODO 将self.X替换成固定值
-    def plot_overrate(self, threshold_range=None, y_threshold=0.2):
+    def plot_overrate(self, threshold_range=None, lin_num=50, y_threshold=0.2, save_path=".\Images"):
         """
         绘制超标率与阈值的关系，并拟合曲线
         Args:
-            threshold_range (tuple): 阈值范围，默认使用自定义范围。
-            y_threshold (float): 第二轮筛选y值的阈值，默认为0.2。
+            threshold_range (tuple): 阈值范围，默认使用自定义范围
+            y_threshold (float): 第二轮筛选y值的阈值，默认为0.2
+            lin_num (int): 在阈值范围内拆分的小片个数
+            save_path (str): 生成的图表保存路径
+
+        Returns:
+            tuple: 绘制拟合曲线的散点x值（Cd阈值）和y值（超标率）
         """
 
         # 如果没有提供阈值范围，则自动生成一个合理的范围
@@ -387,13 +392,13 @@ class RegressionModel:
             threshold_range = (self.data['Cd'].min(), self.data['Cd'].max())
 
         # 生成多个阈值并计算对应的超标率
-        thresholds = np.linspace(threshold_range[0], threshold_range[1], 50)
+        thresholds = np.linspace(threshold_range[0], threshold_range[1], lin_num)
         overrate = []
 
         # 获取用于拟合的真实数据 x_data 和 y_data
         for threshold in thresholds:
-            # 第一轮筛选：Cd > threshold
-            selected_data = self.data[self.data['Cd'] > threshold]
+            # 第一轮筛选：Cd < threshold
+            selected_data = self.data[self.data['Cd'] < threshold]
 
             # 第二轮筛选：预测值y > y_threshold
             predict_y = self.model.predict(selected_data[self.feature])
@@ -411,15 +416,11 @@ class RegressionModel:
         def fit_func(x, theta, lambda_val):
             return (1 / (1 + x ** lambda_val)) ** theta
 
-        # 使用curve_fit进行拟合，获得λ和θ的最优值
+        # 使用curve_fit进行拟合，获得λ和θ的最优值，p0是拟合参数猜测，如有更精准的参数猜测可以更改
         popt, pcov = curve_fit(fit_func, x_data, y_data, p0=[1, 1])
 
-        # 打印拟合的参数
-        print("Optimal parameters (theta, lambda): ", popt)
-        print("Covariance of parameters: ", pcov)
-
         # 使用拟合参数绘图
-        x_fit = np.linspace(min(x_data), max(x_data), 100)
+        x_fit = np.linspace(min(x_data), max(x_data), 100)          # 这里切分数量（100）是写死的
         y_fit = fit_func(x_fit, *popt)
 
         # 绘制超标率与阈值的关系图
@@ -431,18 +432,50 @@ class RegressionModel:
         plt.title('超标率与Cd阈值的关系')
         plt.legend()
         plt.grid(True)
+        if save_path:
+            plt.savefig(save_path, format='png', dpi=300, bbox_inches='tight')
 
-        # 用于绘制拟合曲线的阈值范围
-        x2_data = np.linspace(0, 10, 100)
-        y2_data = fit_func(x2_data, *popt)
+        return x_fit, y_fit
 
-        plt.figure(figsize=(8, 6))
-        plt.plot(x2_data, y2_data, 'g-', label='拟合曲线用于绘图')
-        plt.xlabel('Cd阈值范围')
-        plt.ylabel('拟合的超标率')
-        plt.title('拟合曲线图')
-        plt.legend()
-        plt.grid(True)
+    def find_safe_threshold(self, target_overrate, y_threshold=0.2):
+        """
+        给定一个目标超标率(target_overrate)和y阈值(y_threshold)，反求出其对应的Cd阈值(安全阈值)，
+        并根据此阈值计算混淆矩阵及其评估指标。
 
-        # TODO 先打游戏去了，反求y明天再做
+        Args:
+            target_overrate (float): 目标超标率
+            y_threshold (float): 第二轮筛选y值的阈值，默认为0.2
 
+        Returns:
+            tuple: 安全阈值和混淆矩阵评估指标 (precision, recall, F1_score)
+        """
+
+        # 调用 plot_overrate 方法获取 x_data 和 y_data
+        threshold_range = (self.data['Cd'].min(), self.data['Cd'].max())
+        lin_num = 50
+        x_data, y_data = self.plot_overrate(threshold_range, lin_num, y_threshold, save_path=None)
+
+        # 找到第一个大于等于目标超标率的索引
+        index = next((i for i, rate in enumerate(y_data) if rate >= target_overrate), None)
+        if index is None:
+            raise ValueError("没有找到符合条件的安全阈值")
+
+        safe_threshold = x_data[index]
+
+        # 根据安全阈值计算混淆矩阵
+        y_true = (self.data['Cd'] >= safe_threshold).astype(int)  # 实际Cd值是否超过安全阈值
+        y_pred = (self.y > y_threshold).astype(int)  # 预测值是否超过y阈值
+
+        tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+
+        # 计算评估指标
+        precision = precision_score(y_true, y_pred)
+        recall = recall_score(y_true, y_pred)
+        f1 = f1_score(y_true, y_pred)
+
+        return safe_threshold, {
+            'confusion_matrix': {'TP': tp, 'TN': tn, 'FP': fp, 'FN': fn},
+            'precision': precision,
+            'recall': recall,
+            'F1_score': f1
+        }
