@@ -48,4 +48,4 @@ def get_model_choices():
 
 
 def get_temp_image_path():
-    return os.path.join(".", "Images", "Temp")
+    return os.path.join(".", "Temp", "Images")

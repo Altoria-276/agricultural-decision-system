@@ -63,7 +63,7 @@ params_name_2 = [
 
 
 def kringing(df: pd.DataFrame, params_name: List[str] = params_name, num=100):
-    outpath = os.path.join(".", "kringing", "data")
+    outpath = os.path.join(".", "Temp", "kringing", "data")
     lon, lat = df[space[0]], df[space[1]]
 
     min_lon, max_lon = lon.min(), lon.max()
